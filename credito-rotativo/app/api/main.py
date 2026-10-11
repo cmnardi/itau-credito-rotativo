@@ -31,10 +31,12 @@ from app.api.schemas import (
 )
 from app.domain.models import CreditEvaluation, CustomerProfile
 from app.infrastructure.config import Settings
+from app.infrastructure.observability import configurar_logging
 from app.infrastructure.persistence import construir_repositorio
 
 app = FastAPI(title="Crédito Rotativo — Case Itaú", version="1.0.0")
 
+configurar_logging()  # logs estruturados (JSON) no stdout do container
 _settings = Settings()
 _usecase = AvaliarCreditoUseCase(_settings, construir_repositorio(_settings))
 

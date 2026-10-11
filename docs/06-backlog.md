@@ -31,7 +31,7 @@
 - [x] Persistência SQLite opcional (`CREDITO_PERSISTENCIA`)
 
 **Epic 8 — Fechamento de Gaps (revisão vs case)**
-- [ ] Logs estruturados reais — hoje só existe o `logger`, nenhum log é emitido (case avalia observabilidade)
+- [x] Logs estruturados reais — JSON por linha, eventos (iniciada/concluida/falha/replay), correlation_id, sem PII
 - [ ] Autenticação/autorização simulada — case pede "controle de acesso restrito, autenticação, autorização"
 - [ ] Retry com backoff no write do SQLite — docs prometem resiliência a indisponibilidade temporária
 - [ ] Alertas no `/metricas` — case pede "alertas para possíveis erros ou falhas"

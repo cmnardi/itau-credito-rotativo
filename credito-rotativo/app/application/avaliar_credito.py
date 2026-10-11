@@ -6,6 +6,7 @@ persiste. Isolado do adapter e das regras: substituível por workflow engine
 """
 from __future__ import annotations
 
+import logging
 import time
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -18,7 +19,7 @@ from app.domain.models import (
 )
 from app.domain.rules import montar_cadeia
 from app.infrastructure.config import Settings
-from app.infrastructure.observability import Metricas
+from app.infrastructure.observability import Metricas, log_evento
 from app.infrastructure.persistence import RepositorioAvaliacoes
 
 _CENTAVOS = Decimal("0.01")
@@ -41,15 +42,31 @@ class AvaliarCreditoUseCase:
     def executar(self, customer: CustomerProfile, idempotency_key: str) -> CreditEvaluation:
         # Idempotência: retry com a mesma chave retorna o resultado original.
         if (existente := self.repositorio.buscar_por_chave(idempotency_key)) is not None:
+            log_evento(
+                "replay_idempotente",
+                correlation_id=idempotency_key,
+                cpf_hash=customer.cpf_hash,
+            )
             return existente
 
+        log_evento(
+            "avaliacao_iniciada",
+            correlation_id=idempotency_key,
+            cpf_hash=customer.cpf_hash,
+        )
         contexto = EvaluationContext(customer=customer)
         inicio = time.perf_counter()
         try:
             self._cadeia.handle(contexto)
-        except Exception:
-            # Seam de resiliência: estado FALHA permite retomada após retry.
-            contexto.motivos.append("erro de processamento")
+        except Exception as exc:
+            # Seam de resiliência: o erro é logado com correlation_id para
+            # rastreio; a avaliação não é persistida (nada de resultado parcial).
+            log_evento(
+                "avaliacao_falha",
+                logging.ERROR,
+                correlation_id=idempotency_key,
+                erro=type(exc).__name__,
+            )
             raise
         finally:
             if self.metricas is not None:
@@ -85,6 +102,14 @@ class AvaliarCreditoUseCase:
         self.repositorio.salvar(avaliacao)
         if self.metricas is not None:
             self.metricas.registrar(aprovado)
+        log_evento(
+            "avaliacao_concluida",
+            correlation_id=idempotency_key,
+            status=contexto.status.value,
+            peso_acumulado=contexto.peso_acumulado,
+            valor_liberado=str(valor),
+            regras_aplicadas=len(contexto.regras_aplicadas),
+        )
         return avaliacao
 
     def _calcular_valor(self, customer: CustomerProfile, peso_acumulado: int) -> Decimal:
