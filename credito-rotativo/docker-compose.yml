@@ -7,10 +7,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # Persistência em arquivo (volume) — sobrevive a reinícios.
-      # Para rodar em memória, remova estas duas linhas.
-      CREDITO_PERSISTENCIA: sqlite
-      CREDITO_DB_PATH: /data/avaliacoes.db
+      # Padrão: sqlite em volume (sobrevive a reinícios).
+      # Para banco em memória:
+      #   CREDITO_PERSISTENCIA=memoria docker compose up --build
+      CREDITO_PERSISTENCIA: ${CREDITO_PERSISTENCIA:-sqlite}
+      CREDITO_DB_PATH: ${CREDITO_DB_PATH:-/data/avaliacoes.db}
     volumes:
       - dados:/data
     restart: unless-stopped
