@@ -28,4 +28,5 @@
 **Epic 6 — Entrega**
 - [ ] Documentação final + diagramas
 - [ ] README, trade-offs, limitações
+- [ ] Criar Swagger com exemplos (OpenAPI em `/docs`)
 - [ ] Declaração de uso de IA + preparação da apresentação (30min)

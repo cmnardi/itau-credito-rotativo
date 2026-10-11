@@ -6,6 +6,7 @@ Endpoints:
 - GET  /relatorio         — aprovados, reprovados e valores liberados
 - GET  /metricas          — volume, taxa de aprovação, latência p50/p95
 - GET  /saude             — healthcheck
+- GET  /docs              — Swagger (OpenAPI) com exemplos de request/response
 
 LGPD: o CPF nunca é persistido — o adapter faz hash (SHA-256 + salt) antes
 de entrar no domínio, e os logs/métricas não contêm PII.
@@ -14,8 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import re
+from typing import Annotated
 
-from fastapi import FastAPI, Header
+from fastapi import Body, FastAPI, Header
 from fastapi.responses import JSONResponse
 
 from app.application.avaliar_credito import AvaliarCreditoUseCase
@@ -23,6 +25,9 @@ from app.api.schemas import (
     CustomerProfileRequest,
     EvaluationResponse,
     RelatorioResponse,
+    _EXEMPLO_APROVADO,
+    _EXEMPLO_REPROVADO_ATRASOS,
+    _EXEMPLO_REPROVADO_SCORE,
 )
 from app.domain.models import CreditEvaluation, CustomerProfile
 from app.infrastructure.config import Settings
@@ -73,7 +78,25 @@ def saude() -> dict:
 
 @app.post("/avaliacoes", response_model=EvaluationResponse)
 def avaliar(
-    req: CustomerProfileRequest,
+    req: Annotated[
+        CustomerProfileRequest,
+        Body(
+            openapi_examples={
+                "cliente_aprovado": {
+                    "summary": "Cliente aprovado (score alto, perfil estável)",
+                    "value": _EXEMPLO_APROVADO,
+                },
+                "reprovado_por_score": {
+                    "summary": "Reprovado pela R1 (score < 600)",
+                    "value": _EXEMPLO_REPROVADO_SCORE,
+                },
+                "reprovado_por_atrasos": {
+                    "summary": "Reprovado pela R2 (atrasos > 2 meses)",
+                    "value": _EXEMPLO_REPROVADO_ATRASOS,
+                },
+            }
+        ),
+    ],
     x_idempotency_key: str | None = Header(default=None),
 ) -> EvaluationResponse:
     customer = _para_dominio(req)
@@ -83,7 +106,19 @@ def avaliar(
 
 
 @app.post("/avaliacoes/batch", response_model=list[EvaluationResponse])
-def avaliar_batch(reqs: list[CustomerProfileRequest]) -> list[EvaluationResponse]:
+def avaliar_batch(
+    reqs: Annotated[
+        list[CustomerProfileRequest],
+        Body(
+            openapi_examples={
+                "varios_clientes": {
+                    "summary": "Lista com cliente aprovado e reprovado",
+                    "value": [_EXEMPLO_APROVADO, _EXEMPLO_REPROVADO_SCORE],
+                }
+            }
+        ),
+    ],
+) -> list[EvaluationResponse]:
     respostas = []
     for i, req in enumerate(reqs):
         customer = _para_dominio(req)

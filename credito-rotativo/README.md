@@ -22,6 +22,7 @@ pytest -q                                # testes (unitários, integração, per
 | GET | `/relatorio` | Aprovados, reprovados e valores liberados |
 | GET | `/metricas` | Volume, taxa de aprovação, latência p50/p95 |
 | GET | `/saude` | Healthcheck |
+| GET | `/docs` | Swagger (OpenAPI) com exemplos de request/response |
 
 ```bash
 curl -X POST http://127.0.0.1:8000/avaliacoes \
