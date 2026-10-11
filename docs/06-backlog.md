@@ -30,6 +30,15 @@
 - [x] docker-compose (app + volume de dados SQLite)
 - [x] Persistência SQLite opcional (`CREDITO_PERSISTENCIA`)
 
+**Epic 8 — Fechamento de Gaps (revisão vs case)**
+- [ ] Logs estruturados reais — hoje só existe o `logger`, nenhum log é emitido (case avalia observabilidade)
+- [ ] Autenticação/autorização simulada — case pede "controle de acesso restrito, autenticação, autorização"
+- [ ] Retry com backoff no write do SQLite — docs prometem resiliência a indisponibilidade temporária
+- [ ] Alertas no `/metricas` — case pede "alertas para possíveis erros ou falhas"
+- [ ] Dataset fictício `data/clientes_ficticios.json` — case fala em "lista de clientes"
+- [ ] Exportação do relatório em CSV — plus rápido além do JSON
+- [ ] Atualizar `docs/04` e o roteiro da apresentação para refletir a realidade do código
+
 **Epic 6 — Entrega**
 - [x] Documentação final + diagramas
 - [x] README, trade-offs, limitações
