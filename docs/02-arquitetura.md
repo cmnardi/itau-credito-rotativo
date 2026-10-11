@@ -141,7 +141,7 @@ credito-rotativo/
 │   │       └── perfil_gastos.py       # R5 (scoring)
 │   └── infrastructure/
 │       ├── config.py                  # Settings via env vars (pydantic-settings)
-│       ├── persistence.py             # repositório em memória (SQLite opcional)
+│       ├── persistence.py             # repositório: memória ou SQLite (config)
 │       └── observability.py           # logs estruturados + métricas
 ├── tests/
 │   ├── unit/                          # um por elo

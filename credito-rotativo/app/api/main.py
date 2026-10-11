@@ -31,12 +31,12 @@ from app.api.schemas import (
 )
 from app.domain.models import CreditEvaluation, CustomerProfile
 from app.infrastructure.config import Settings
-from app.infrastructure.persistence import RepositorioAvaliacoes
+from app.infrastructure.persistence import construir_repositorio
 
 app = FastAPI(title="Crédito Rotativo — Case Itaú", version="1.0.0")
 
 _settings = Settings()
-_usecase = AvaliarCreditoUseCase(_settings, RepositorioAvaliacoes())
+_usecase = AvaliarCreditoUseCase(_settings, construir_repositorio(_settings))
 
 
 def _hash_cpf(cpf: str, salt: str) -> str:

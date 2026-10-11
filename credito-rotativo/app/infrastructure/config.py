@@ -6,6 +6,7 @@ Manutenção = trocar a env var, sem alterar código nem redeploy.
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,6 +35,9 @@ class Settings(BaseSettings):
     valor_pct_limite: Decimal = Decimal("0.50")
     valor_teto: Decimal = Decimal("10000.00")
     valor_ajuste_min: Decimal = Decimal("0.50")
+    # Persistência: "memoria" (padrão) ou "sqlite" (arquivo)
+    persistencia: Literal["memoria", "sqlite"] = "memoria"
+    db_path: str = "avaliacoes.db"
     # LGPD: salt do hash de CPF (simulação — em produção usar KMS/vault)
     cpf_salt: str = "case-rotativo"
 

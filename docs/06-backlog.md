@@ -25,6 +25,11 @@
 - [x] Testes de integração da cadeia
 - [x] Testes de performance (latência/vazão)
 
+**Epic 7 — Infraestrutura Local**
+- [x] Dockerfile (multi-stage, venv, usuário não privilegiado, healthcheck)
+- [x] docker-compose (app + volume de dados SQLite)
+- [x] Persistência SQLite opcional (`CREDITO_PERSISTENCIA`)
+
 **Epic 6 — Entrega**
 - [ ] Documentação final + diagramas
 - [ ] README, trade-offs, limitações

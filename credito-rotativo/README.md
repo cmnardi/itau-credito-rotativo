@@ -13,6 +13,19 @@ uvicorn app.api.main:app --reload        # API em http://127.0.0.1:8000
 pytest -q                                # testes (unitários, integração, performance)
 ```
 
+## Docker
+
+```bash
+docker compose up --build     # API em http://127.0.0.1:8000 (SQLite em volume)
+docker compose down -v        # para e remove o volume de dados
+```
+
+O compose sobe a aplicação com todas as dependências e persiste as
+avaliações em SQLite (`/data/avaliacoes.db`, volume nomeado) — os
+dados sobrevivem a reinícios do container. Para rodar em memória,
+remova as duas variáveis `CREDITO_PERSISTENCIA`/`CREDITO_DB_PATH`
+do `docker-compose.yml` (ou rode `uvicorn` direto, como acima).
+
 ## Endpoints
 
 | Método | Path | Descrição |

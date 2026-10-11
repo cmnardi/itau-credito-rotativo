@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: credito-rotativo
+    ports:
+      - "8000:8000"
+    environment:
+      # Persistência em arquivo (volume) — sobrevive a reinícios.
+      # Para rodar em memória, remova estas duas linhas.
+      CREDITO_PERSISTENCIA: sqlite
+      CREDITO_DB_PATH: /data/avaliacoes.db
+    volumes:
+      - dados:/data
+    restart: unless-stopped
+
+volumes:
+  dados:
