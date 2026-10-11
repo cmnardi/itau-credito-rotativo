@@ -40,6 +40,31 @@ def test_rejeita_meses_insuficientes():
         )
 
 
+def test_rejeita_nome_vazio(cliente):
+    with pytest.raises(ValueError):
+        cliente(nome="   ")
+
+
+def test_rejeita_valor_fatura_negativa(cliente):
+    with pytest.raises(ValueError):
+        cliente(valor_fatura=Decimal("-100"))
+
+
+def test_rejeita_limite_negativo(cliente):
+    with pytest.raises(ValueError):
+        cliente(limite_disponivel=Decimal("-500"))
+
+
+def test_rejeita_atrasos_negativos(cliente):
+    with pytest.raises(ValueError):
+        cliente(atrasos_meses=-1)
+
+
+def test_rejeita_gastos_negativos(cliente):
+    with pytest.raises(ValueError):
+        cliente(gastos_ultimos_meses=[Decimal("1000.00")] * 5 + [Decimal("-50")])
+
+
 def test_maquina_de_estados():
     assert Estado.RECEBIDO.pode_ir_para(Estado.EM_AVALIACAO)
     assert Estado.EM_AVALIACAO.pode_ir_para(Estado.AVALIADO)

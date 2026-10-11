@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
 from app.application.avaliar_credito import AvaliarCreditoUseCase
 from app.domain.models import EvaluationContext, Status
 from app.domain.rules import montar_cadeia
@@ -94,6 +96,45 @@ def test_use_case_reprovado_valor_zero(cliente, settings):
     resultado = usecase.executar(cliente(score_credito=100), "chave-x")
     assert resultado.status_final is Status.REPROVADO
     assert resultado.valor_liberado == Decimal("0.00")
+
+
+def test_use_case_reprova_por_score_insuficiente(cliente, settings):
+    """Sem bloqueio, mas peso < limite_aprovacao → reprovado pelo orquestrador."""
+    usecase = AvaliarCreditoUseCase(settings, RepositorioAvaliacoes())
+    gastos = [Decimal("100"), Decimal("900")] * 3
+    resultado = usecase.executar(
+        cliente(
+            valor_fatura=Decimal("1000.00"),
+            limite_disponivel=Decimal("100.00"),
+            gastos_ultimos_meses=gastos,
+        ),
+        "insuficiente-1",
+    )
+    assert resultado.status_final is Status.REPROVADO
+    assert resultado.valor_liberado == Decimal("0.00")
+    assert any("score acumulado" in m for m in resultado.motivos)
+    # cadeia completa, sem bloqueio; R3 acima do máximo não conta como aplicada
+    assert resultado.regras_aplicadas == [
+        "ScoreMinimoRule",
+        "HistoricoAtrasosRule",
+        "EstabilidadeGastosRule",
+        "PerfilGastosRule",
+    ]
+
+
+def test_erro_de_processamento_propaga(cliente, settings, monkeypatch):
+    """Seam de resiliência: regra que falha → erro propaga, nada persistido."""
+    from app.domain.rules.perfil_gastos import PerfilGastosRule
+
+    def _explodir(self, context):
+        raise RuntimeError("falha simulada")
+
+    monkeypatch.setattr(PerfilGastosRule, "avaliar", _explodir)
+    repo = RepositorioAvaliacoes()
+    usecase = AvaliarCreditoUseCase(settings, repo)
+    with pytest.raises(RuntimeError):
+        usecase.executar(cliente(), "falha-1")
+    assert repo.listar() == []  # não persiste resultado incompleto
 
 
 def test_relatorio(cliente, settings):

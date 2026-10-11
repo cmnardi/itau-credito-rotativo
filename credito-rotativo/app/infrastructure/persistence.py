@@ -79,6 +79,10 @@ class SqliteRepositorioAvaliacoes(RepositorioAvaliacoes):
             linhas = self._conn.execute("SELECT * FROM avaliacoes").fetchall()
         return [self._para_dominio(linha) for linha in linhas]
 
+    def fechar(self) -> None:
+        """Fecha a conexão (evita ResourceWarning em testes)."""
+        self._conn.close()
+
     @staticmethod
     def _para_linha(a: CreditEvaluation) -> tuple:
         return (

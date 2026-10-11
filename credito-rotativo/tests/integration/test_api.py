@@ -95,5 +95,20 @@ def test_validacao_rejeita_gastos_insuficientes():
     assert resp.status_code == 422
 
 
+def test_erro_de_dominio_retorna_400():
+    """Gasto negativo passa pelo schema Pydantic, mas o domínio rejeita (fail-fast)."""
+    resp = client.post(
+        "/avaliacoes",
+        json=payload(
+            cpf="444.555.666-77",
+            gastos_ultimos_meses=[
+                "1000.00", "-500.00", "900.00", "1100.00", "1000.00", "1000.00",
+            ],
+        ),
+    )
+    assert resp.status_code == 400
+    assert "negativo" in resp.json()["detail"]
+
+
 def test_saude():
     assert client.get("/saude").json() == {"status": "ok"}
