@@ -15,6 +15,7 @@
 | [docs/04-nfrs-e-testes.md](docs/04-nfrs-e-testes.md) | NFRs detalhados (latência, escala, LGPD, observabilidade, resiliência) e estratégia de testes |
 | [docs/05-tradeoffs-e-entrega.md](docs/05-tradeoffs-e-entrega.md) | Trade-offs, limitações, evoluções, entregáveis, declaração de uso de IA |
 | [docs/06-backlog.md](docs/06-backlog.md) | Backlog por épica (progresso da implementação) |
+| [docs/07-apresentacao.md](docs/07-apresentacao.md) | Roteiro da apresentação (30 min), demo e Q&A |
 
 ## Código
 

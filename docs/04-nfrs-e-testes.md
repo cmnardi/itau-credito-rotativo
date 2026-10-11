@@ -10,9 +10,13 @@
 
 ## 4.2 Estratégia de Testes
 
-- **Unitários:** cada elo isolado (aprovado/reprovado/limite)
-- **Integração:** cadeia completa, ordem e short-circuit
-- **Edge cases:** score no limite, atrasos no limite, limite zerado, dados ausentes
+- **Unitários:** cada elo isolado (aprovado/reprovado/limite) + invariants dos modelos
+- **Integração:** cadeia completa, ordem e short-circuit, API, persistência
+- **Edge cases:** score no limite (600/599), atrasos no limite (2/3), limite zerado, gastos zerados, dados inválidos (422)
 - **Performance:** medição de latência e vazão (meta: 10k/min)
 
-Cobertura atual: 38 testes (`pytest -q` em `credito-rotativo/`) — unitários por elo, integração da cadeia e da API, e testes de performance que validam a meta de vazão.
+**Cobertura atual:** 41 testes (`pytest -q` em `credito-rotativo/`).
+
+**Resultados medidos:** latência por avaliação **0,44 ms**; vazão
+**~369k avaliações/min** (meta do case: 10k/min); latência p50/p95
+exposta em `/metricas` (p95 ≈ 1,6 ms na carga dos testes de API).

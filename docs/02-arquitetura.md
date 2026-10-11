@@ -127,12 +127,13 @@ credito-rotativo/
 ├── app/
 │   ├── api/                           # Adapter (FastAPI)
 │   │   ├── main.py                    # POST /avaliacoes, POST /avaliacoes/batch, GET /relatorio
-│   │   └── schemas.py                 # Pydantic (request/response)
+│   │   └── schemas.py                 # Pydantic (request/response) com exemplos p/ Swagger
 │   ├── application/                   # Caso de uso
 │   │   └── avaliar_credito.py         # orquestrador: valida → monta cadeia (config) → executa → calcula valor → persiste
 │   ├── domain/
-│   │   ├── models.py                  # CustomerProfile, EvaluationContext, CreditEvaluation
+│   │   ├── models.py                  # CustomerProfile, EvaluationContext, CreditEvaluation, Estado
 │   │   └── rules/                     # Chain of Responsibility
+│   │       ├── __init__.py            # REGISTRY + montar_cadeia()
 │   │       ├── base.py                # AbstractRule: set_next()/handle()
 │   │       ├── score_minimo.py        # R1 (bloqueio)
 │   │       ├── historico_atrasos.py   # R2 (bloqueio)
@@ -144,8 +145,13 @@ credito-rotativo/
 │       ├── persistence.py             # repositório: memória ou SQLite (config)
 │       └── observability.py           # logs estruturados + métricas
 ├── tests/
-│   ├── unit/                          # um por elo
-│   └── integration/                   # cadeia completa
+│   ├── unit/                          # um por elo + modelos
+│   ├── integration/                   # cadeia, API, persistência
+│   └── performance/                   # latência e vazão (meta 10k/min)
+├── Dockerfile                         # multi-stage (venv), usuário não privilegiado
+├── docker-entrypoint.sh               # ajusta volume e cai para appuser
+├── docker-compose.yml                 # app + volume de dados (SQLite)
+├── pytest.ini
 ├── requirements.txt
 └── README.md
 ```
