@@ -45,6 +45,18 @@ sequenceDiagram
   U-->>C: aprovação/reprovação + valor
 ```
 
+Máquina de estados (preparação para SAGA):
+
+```mermaid
+stateDiagram-v2
+  [*] --> RECEBIDO
+  RECEBIDO --> EM_AVALIACAO: inicia cadeia
+  EM_AVALIACAO --> AVALIADO: cadeia concluída
+  EM_AVALIACAO --> FALHA: erro de processamento
+  FALHA --> EM_AVALIACAO: retry (idempotente)
+  AVALIADO --> [*]
+```
+
 Componentes:
 
 ```mermaid
@@ -124,7 +136,7 @@ Decisões: dataclass frozen (domínio puro, sem framework); `Decimal` para valor
 - peso: float
 
 `CreditEvaluation` (saída/auditoria):
-- cpf_hash, status_final, valor_liberado: Decimal, motivos, regras_aplicadas, timestamp
+- cpf_hash, estado (RECEBIDO | EM_AVALIACAO | AVALIADO), status_final, valor_liberado: Decimal, motivos, regras_aplicadas, idempotency_key, timestamp
 
 ### 3.2 Estrutura de Pastas (Ports & Adapters)
 
@@ -206,6 +218,24 @@ ConcreteRuleN:
 - **Scoring:** regras de perfil acumulam pesos/pontos no `EvaluationContext`
 - **Onde Strategy entraria:** se regras futuras exigirem algoritmos de cálculo intercambiáveis (fórmulas distintas de valor), o Strategy isola esses algoritmos — decisão adiada para a implementação
 
+### 6.1 Evolução para SAGA (preparação)
+
+**Decisão de escopo (ponto de apresentação):**
+- **No case (teste):** Chain of Responsibility + orquestrador — a implementação mais comum e enxuta para uma avaliação read-only
+- **Em produção real:** SAGA orquestrado (Temporal/Camunda/Step Functions) quando a liberação cruzar serviços transacionais (reserva de limite, contrato, notificação), com ações de compensação por passo
+- **Por quê:** SAGA prematuro adiciona consistência eventual e complexidade de compensação sem benefício para um fluxo sem side effects; 2PC/XA é evitado em escala por fragilidade
+
+**Por que não SAGA na v1:** SAGA coordena transações distribuídas com ações de compensação. O fluxo atual é uma avaliação read-only (regras puras + persistência do resultado) — não há efeitos colaterais a compensar, então CoR + orquestrador basta.
+
+**Quando SAGA faz sentido:** o fluxo passar a ter side effects transacionais em múltiplos serviços (liberar limite, gerar contrato, notificar) — aí cada passo precisa de compensação. A avaliação vira o **primeiro step** do Saga futuro.
+
+**Seams preparados na v1 (sem over-engineering):**
+1. **Orquestrador isolado** (use case) — substituível por workflow engine (Temporal/Step Functions) sem mudar as regras
+2. **Máquina de estados** da avaliação (RECEBIDO → EM_AVALIACAO → AVALIADO/FALHA) persistida — permite retomada após falha
+3. **Eventos de domínio** (`AvaliacaoIniciada`, `RegraAvaliada`, `AvaliacaoConcluida`) — habilitam coreografia futura
+4. **Idempotency key** na submissão — retries seguros em escala
+5. **Regras como funções puras** — podem virar serviços remotos sem mudar o contrato
+
 ## 7. Regras de Negócio Propostas (com justificativa)
 
 | # | Regra | Tipo | Critério (exemplo) | Justificativa |
@@ -250,6 +280,7 @@ Nova regra = nova classe concreta de handler, registrada na configuração da ca
 
 - **Python + FastAPI vs Java/Kotlin:** Python maximiza clareza e velocidade (prazo de 7 dias), deixando tempo para testes, docs e NFRs; Java/Kotlin seria mais alinhado à stack do Itaú, mas mais verboso para o escopo do case
 - **CoR puro vs Strategy:** CoR atende ao fluxo sequencial de avaliação; Strategy só se justifica com múltiplos algoritmos de cálculo — decisão adiada
+- **CoR + orquestrador vs SAGA na v1:** SAGA só se justifica com side effects transacionais distribuídos; a v1 prepara os seams (estados, eventos, idempotência) para a migração sem refatoração
 - **Short-circuit vs avaliação completa:** reprovação imediata economiza processamento, mas perde diagnóstico completo (mitigado com log dos motivos até o ponto de corte)
 - **Regras em configuração vs código:** configuração dá flexibilidade; complexidade de parsing/validação
 
