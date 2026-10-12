@@ -1,0 +1,128 @@
+[
+  {
+    "nome": "Ana Silva",
+    "cpf": "529.148.736-05",
+    "score_credito": 750,
+    "valor_fatura": "1000.00",
+    "limite_disponivel": "4000.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["1000.00", "1000.00", "1000.00", "1000.00", "1000.00", "1000.00"]
+  },
+  {
+    "nome": "Bruno Costa",
+    "cpf": "614.735.289-40",
+    "score_credito": 520,
+    "valor_fatura": "800.00",
+    "limite_disponivel": "4200.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["800.00", "800.00", "800.00", "800.00", "800.00", "800.00"]
+  },
+  {
+    "nome": "Carla Dias",
+    "cpf": "472.819.536-12",
+    "score_credito": 800,
+    "valor_fatura": "800.00",
+    "limite_disponivel": "4200.00",
+    "atrasos_meses": 5,
+    "gastos_ultimos_meses": ["800.00", "800.00", "800.00", "800.00", "800.00", "800.00"]
+  },
+  {
+    "nome": "Diego Ferraz",
+    "cpf": "308.564.172-88",
+    "score_credito": 700,
+    "valor_fatura": "9500.00",
+    "limite_disponivel": "500.00",
+    "atrasos_meses": 1,
+    "gastos_ultimos_meses": ["9000.00", "9000.00", "9000.00", "9000.00", "9000.00", "9000.00"]
+  },
+  {
+    "nome": "Eduarda Lima",
+    "cpf": "741.392.850-63",
+    "score_credito": 610,
+    "valor_fatura": "5000.00",
+    "limite_disponivel": "200.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["500.00", "2500.00", "300.00", "3000.00", "400.00", "2800.00"]
+  },
+  {
+    "nome": "Felipe Rocha",
+    "cpf": "286.471.903-27",
+    "score_credito": 720,
+    "valor_fatura": "200.00",
+    "limite_disponivel": "4800.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["200.00", "200.00", "200.00", "200.00", "200.00", "200.00"]
+  },
+  {
+    "nome": "Gabriela Souza",
+    "cpf": "950.283.641-91",
+    "score_credito": 600,
+    "valor_fatura": "1500.00",
+    "limite_disponivel": "1500.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["1500.00", "1500.00", "1500.00", "1500.00", "1500.00", "1500.00"]
+  },
+  {
+    "nome": "Henrique Alves",
+    "cpf": "173.640.258-34",
+    "score_credito": 599,
+    "valor_fatura": "1200.00",
+    "limite_disponivel": "3800.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["1200.00", "1200.00", "1200.00", "1200.00", "1200.00", "1200.00"]
+  },
+  {
+    "nome": "Isabela Mendes",
+    "cpf": "846.025.713-56",
+    "score_credito": 680,
+    "valor_fatura": "1200.00",
+    "limite_disponivel": "3800.00",
+    "atrasos_meses": 2,
+    "gastos_ultimos_meses": ["1200.00", "1200.00", "1200.00", "1200.00", "1200.00", "1200.00"]
+  },
+  {
+    "nome": "João Pereira",
+    "cpf": "395.714.862-08",
+    "score_credito": 680,
+    "valor_fatura": "1200.00",
+    "limite_disponivel": "3800.00",
+    "atrasos_meses": 3,
+    "gastos_ultimos_meses": ["1200.00", "1200.00", "1200.00", "1200.00", "1200.00", "1200.00"]
+  },
+  {
+    "nome": "Larissa Prado",
+    "cpf": "628.503.419-75",
+    "score_credito": 740,
+    "valor_fatura": "3000.00",
+    "limite_disponivel": "7000.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["1500.00", "1500.00", "1500.00", "1500.00", "1500.00", "1500.00"]
+  },
+  {
+    "nome": "Marcos Oliveira",
+    "cpf": "214.968.375-49",
+    "score_credito": 690,
+    "valor_fatura": "1000.00",
+    "limite_disponivel": "4000.00",
+    "atrasos_meses": 1,
+    "gastos_ultimos_meses": ["2200.00", "400.00", "2000.00", "500.00", "1900.00", "1000.00"]
+  },
+  {
+    "nome": "Natália Barbosa",
+    "cpf": "907.351.482-16",
+    "score_credito": 850,
+    "valor_fatura": "20000.00",
+    "limite_disponivel": "20000.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["20000.00", "20000.00", "20000.00", "20000.00", "20000.00", "20000.00"]
+  },
+  {
+    "nome": "Otávio Ferreira",
+    "cpf": "563.890.724-60",
+    "score_credito": 770,
+    "valor_fatura": "900.00",
+    "limite_disponivel": "100.00",
+    "atrasos_meses": 0,
+    "gastos_ultimos_meses": ["900.00", "900.00", "900.00", "900.00", "900.00", "900.00"]
+  }
+]

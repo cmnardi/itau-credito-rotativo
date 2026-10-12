@@ -145,9 +145,11 @@ credito-rotativo/
 │       ├── config.py                  # Settings via env vars (pydantic-settings)
 │       ├── persistence.py             # repositório: memória ou SQLite (config)
 │       └── observability.py           # logs estruturados + métricas
+├── data/
+│   └── clientes_ficticios.json        # RF1: lista de clientes fictícios (payload do batch)
 ├── tests/
 │   ├── unit/                          # um por elo + modelos
-│   ├── integration/                   # cadeia, API, persistência
+│   ├── integration/                   # cadeia, API, persistência, dataset (RF1/RF5)
 │   └── performance/                   # latência e vazão (meta 10k/min)
 ├── Dockerfile                         # multi-stage (venv), usuário não privilegiado
 ├── docker-entrypoint.sh               # ajusta volume e cai para appuser

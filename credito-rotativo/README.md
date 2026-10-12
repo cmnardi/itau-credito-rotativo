@@ -87,6 +87,27 @@ do RESUMO (`pd.read_csv("relatorio.csv", sep=";", skiprows=9)`, contando a
 linha em branco). O CSV leva o `cpf_hash` — nunca o CPF — porque a lista de
 clientes precisa ser rastreável sem expor PII.
 
+### Dataset fictício (RF1 — lista de clientes)
+
+O case pede simular a avaliação **para uma lista de clientes**: ela está em
+`data/clientes_ficticios.json`, com 14 perfis fictícios (nomes e CPFs de
+mentira, sem checksum válido) no formato exato do body de
+`POST /avaliacoes/batch`:
+
+```bash
+curl -X POST http://127.0.0.1:8000/avaliacoes/batch \
+  -H "Content-Type: application/json" \
+  -d @data/clientes_ficticios.json     # 14 clientes → 9 aprovados, 5 reprovados
+```
+
+Os perfis cobrem os caminhos das 5 regras: bloqueios nas bordas (score
+599/600, 2/3 atrasos), aprovação com 2 dos 3 critérios (uso 95%, fatura 2× a
+média, variação 0.55), perfil inativo (uso 4% → meio ponto), reprovação com
+0 pontos, o teto de 10.000 e o limite de 50% do limite total. O desfecho
+esperado de cada cliente está na tabela viva em
+`tests/integration/test_dataset.py`, que roda o dataset de ponta a ponta
+(schema → API → cadeia → relatório → CSV).
+
 ## Arquitetura (Ports & Adapters)
 
 ```

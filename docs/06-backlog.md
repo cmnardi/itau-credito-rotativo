@@ -35,7 +35,7 @@
 - [ ] Autenticação/autorização simulada — case pede "controle de acesso restrito, autenticação, autorização"
 - [ ] Retry com backoff no write do SQLite — docs prometem resiliência a indisponibilidade temporária
 - [ ] Alertas no `/metricas` — case pede "alertas para possíveis erros ou falhas"
-- [ ] Dataset fictício `data/clientes_ficticios.json` — case fala em "lista de clientes"
+- [x] Dataset fictício `data/clientes_ficticios.json` — case fala em "lista de clientes" (14 perfis = payload do `/avaliacoes/batch`, testado de ponta a ponta)
 - [x] Exportação do relatório em CSV — plus rápido além do JSON (content negotiation: `Accept: text/csv` no `GET /relatorio`)
 - [ ] Atualizar `docs/04` e o roteiro da apresentação para refletir a realidade do código
 

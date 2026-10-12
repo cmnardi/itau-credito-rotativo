@@ -1,12 +1,16 @@
 """Fixtures compartilhadas: cliente válido padrão + settings padrão."""
 from __future__ import annotations
 
+import json
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
 from app.domain.models import CustomerProfile
 from app.infrastructure.config import Settings
+
+CAMINHO_DATASET = Path(__file__).resolve().parents[1] / "data" / "clientes_ficticios.json"
 
 
 @pytest.fixture
@@ -32,3 +36,12 @@ def cliente():
 @pytest.fixture
 def settings() -> Settings:
     return Settings()
+
+
+@pytest.fixture
+def clientes_ficticios() -> list[dict]:
+    """Dataset do RF1: a 'lista de clientes' do case, em JSON.
+
+    Cada entrada é um payload válido de `POST /avaliacoes/batch`.
+    """
+    return json.loads(CAMINHO_DATASET.read_text(encoding="utf-8"))
