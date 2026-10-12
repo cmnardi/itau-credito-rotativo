@@ -4,6 +4,7 @@ Endpoints:
 - POST /avaliacoes        — avalia um cliente
 - POST /avaliacoes/batch  — avalia uma lista de clientes
 - GET  /relatorio         — aprovados, reprovados e valores liberados
+                           (JSON; com `Accept: text/csv` devolve o download em CSV)
 - GET  /metricas          — volume, taxa de aprovação, latência p50/p95
 - GET  /saude             — healthcheck
 - GET  /docs              — Swagger (OpenAPI) com exemplos de request/response
@@ -18,9 +19,10 @@ import re
 from typing import Annotated
 
 from fastapi import Body, FastAPI, Header
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from app.application.avaliar_credito import AvaliarCreditoUseCase
+from app.api.csv_export import negociar_formato, serializar_relatorio_csv
 from app.api.schemas import (
     CustomerProfileRequest,
     EvaluationResponse,
@@ -129,9 +131,66 @@ def avaliar_batch(
     return respostas
 
 
-@app.get("/relatorio", response_model=RelatorioResponse)
-def relatorio() -> RelatorioResponse:
+@app.get(
+    "/relatorio",
+    response_model=RelatorioResponse,
+    summary="Relatório de avaliações (JSON ou CSV)",
+    description=(
+        "Aprovados, reprovados e valores liberados (RF5). Por padrão devolve "
+        "JSON; enviando `Accept: text/csv` o mesmo recurso devolve o relatório "
+        "em CSV (duas seções: RESUMO e DETALHES) pronto para download."
+    ),
+    responses={
+        200: {
+            "description": (
+                "JSON por padrão; CSV quando o cliente pede `Accept: text/csv`."
+            ),
+            "content": {
+                "text/csv": {
+                    "schema": {"type": "string"},
+                    "example": (
+                        "RESUMO\n"
+                        "gerado_em;2026-10-12T20:00:00+00:00\n"
+                        "total_avaliacoes;1\n"
+                        "aprovados;1\n"
+                        "reprovados;0\n"
+                        "valor_total_liberado;1000.00\n"
+                        "taxa_aprovacao;1.0\n"
+                        "\n"
+                        "DETALHES\n"
+                        "timestamp;status;valor_liberado;cpf_hash;motivos;"
+                        "regras_aplicadas;idempotency_key\n"
+                        "2026-10-12T20:00:00+00:00;aprovado;1000.00;"
+                        "3b0f...;;ScoreMinimoRule | HistoricoAtrasosRule;a2d1...\n"
+                    ),
+                }
+            },
+        }
+    },
+)
+def relatorio(
+    accept: Annotated[
+        str | None,
+        Header(
+            description=(
+                "Content negotiation: envie `text/csv` para exportar o "
+                "relatório em CSV (padrão: `application/json`)."
+            )
+        ),
+    ] = None,
+) -> RelatorioResponse | Response:
     rel = _usecase.relatorio()
+    if negociar_formato(accept) == "csv":
+        # Response direto: o FastAPI devolve como está, sem passar pelo
+        # response_model — só o content-type muda; o conteúdo vem do mesmo
+        # caso de uso que abastece o JSON.
+        return Response(
+            content=serializar_relatorio_csv(rel),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": 'attachment; filename="relatorio_avaliacoes.csv"'
+            },
+        )
     return RelatorioResponse(
         total_avaliacoes=rel["total_avaliacoes"],
         aprovados=rel["aprovados"],

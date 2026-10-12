@@ -37,7 +37,7 @@ sobrevivem a reinícios do container. Para rodar sem Docker:
 |---|---|---|
 | POST | `/avaliacoes` | Avalia um cliente |
 | POST | `/avaliacoes/batch` | Avalia uma lista de clientes |
-| GET | `/relatorio` | Aprovados, reprovados e valores liberados |
+| GET | `/relatorio` | Aprovados, reprovados e valores liberados (JSON; `Accept: text/csv` → CSV) |
 | GET | `/metricas` | Volume, taxa de aprovação, latência p50/p95 |
 | GET | `/saude` | Healthcheck |
 | GET | `/docs` | Swagger (OpenAPI) com exemplos de request/response |
@@ -53,6 +53,39 @@ curl -X POST http://127.0.0.1:8000/avaliacoes \
 
 Idempotência: envie `X-Idempotency-Key` (opcional); por padrão a chave é o
 hash do CPF, então a mesma submissão não reavalia o cliente.
+
+### Exportar o relatório em CSV (content negotiation)
+
+O `GET /relatorio` atende JSON por padrão; pedindo `Accept: text/csv` o mesmo
+recurso devolve o download em CSV (`Content-Disposition: attachment`):
+
+```bash
+curl -H "Accept: text/csv" http://127.0.0.1:8000/relatorio -o relatorio.csv
+```
+
+O arquivo tem duas seções — **RESUMO** (totais, taxa de aprovação,
+`gerado_em`) e **DETALHES** (uma linha por avaliação) — e usa `;` como
+separador, para abrir direto no Excel pt-BR:
+
+```csv
+RESUMO
+gerado_em;2026-10-12T10:00:00+00:00
+total_avaliacoes;2
+aprovados;1
+reprovados;1
+valor_total_liberado;1000.00
+taxa_aprovacao;0.5
+
+DETALHES
+timestamp;status;valor_liberado;cpf_hash;motivos;regras_aplicadas;idempotency_key
+2026-10-12T09:58:11+00:00;aprovado;1000.00;bd81eb5f...;;ScoreMinimoRule | ...;a2d11401...
+```
+
+Programaticamente, leia a partir da seção DETALHES — com `csv.reader(f,
+delimiter=";")` procurando a linha `DETALHES`, ou no pandas pulando as linhas
+do RESUMO (`pd.read_csv("relatorio.csv", sep=";", skiprows=9)`, contando a
+linha em branco). O CSV leva o `cpf_hash` — nunca o CPF — porque a lista de
+clientes precisa ser rastreável sem expor PII.
 
 ## Arquitetura (Ports & Adapters)
 

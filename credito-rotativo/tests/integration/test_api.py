@@ -1,6 +1,8 @@
 """Testes da API (adapter HTTP)."""
 from __future__ import annotations
 
+import csv
+import io
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -112,3 +114,67 @@ def test_erro_de_dominio_retorna_400():
 
 def test_saude():
     assert client.get("/saude").json() == {"status": "ok"}
+
+
+def test_relatorio_csv_via_accept():
+    """Content negotiation: `Accept: text/csv` baixa o relatório em CSV."""
+    client.post("/avaliacoes", json=payload(cpf="555.444.333-22"))
+    resp = client.get("/relatorio", headers={"Accept": "text/csv"})
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    assert resp.headers["content-disposition"] == (
+        'attachment; filename="relatorio_avaliacoes.csv"'
+    )
+
+    corpo = resp.text
+    assert corpo.startswith("RESUMO\n")
+    assert "\n\nDETALHES\n" in corpo
+    assert "cpf_hash" in corpo  # identifica sem expor CPF
+    assert "123.456.789-00" not in corpo  # PII nunca sai
+
+    linhas = list(csv.reader(io.StringIO(corpo), delimiter=";"))
+    cabecalho = linhas[linhas.index(["DETALHES"]) + 1]
+    assert cabecalho == [
+        "timestamp",
+        "status",
+        "valor_liberado",
+        "cpf_hash",
+        "motivos",
+        "regras_aplicadas",
+        "idempotency_key",
+    ]
+    # pelo menos uma linha de dados, com hash de 64 chars e status conhecido
+    dados = linhas[linhas.index(cabecalho) + 1 :]
+    assert len(dados) >= 1
+    assert dados[0][1] in {"aprovado", "reprovado"}
+    assert len(dados[0][3]) == 64
+
+
+def test_relatorio_padrao_continua_json():
+    resp = client.get("/relatorio")
+    assert resp.headers["content-type"].startswith("application/json")
+    assert resp.json()["total_avaliacoes"] >= 1
+
+
+def test_relatorio_negocia_q_values():
+    """`text/csv` perde para `application/json` quando a qualidade é menor."""
+    resp = client.get(
+        "/relatorio",
+        headers={"Accept": "application/json;q=0.9, text/csv;q=0.8"},
+    )
+    assert resp.headers["content-type"].startswith("application/json")
+
+    csv_resp = client.get(
+        "/relatorio", headers={"Accept": "text/csv;q=0.9, application/json;q=0.8"}
+    )
+    assert csv_resp.headers["content-type"].startswith("text/csv")
+
+
+def test_swagger_documenta_csv():
+    """O Swagger mostra o header Accept e o content-type text/csv."""
+    spec = client.get("/openapi.json").json()
+    operacao = spec["paths"]["/relatorio"]["get"]
+    assert "text/csv" in operacao["responses"]["200"]["content"]
+    assert "application/json" in operacao["responses"]["200"]["content"]
+    assert any(p["name"] == "accept" for p in operacao["parameters"])

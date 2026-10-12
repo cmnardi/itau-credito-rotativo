@@ -25,21 +25,21 @@
 - [x] Testes de integração da cadeia
 - [x] Testes de performance (latência/vazão)
 
-**Epic 7 — Infraestrutura Local**
+**Epic 6 — Infraestrutura Local**
 - [x] Dockerfile (multi-stage, venv, usuário não privilegiado, healthcheck)
 - [x] docker-compose (app + volume de dados SQLite)
 - [x] Persistência SQLite opcional (`CREDITO_PERSISTENCIA`)
 
-**Epic 8 — Fechamento de Gaps (revisão vs case)**
+**Epic 7 — Fechamento de Gaps (revisão vs case)**
 - [x] Logs estruturados reais — JSON por linha, eventos (iniciada/concluida/falha/replay), correlation_id, sem PII
 - [ ] Autenticação/autorização simulada — case pede "controle de acesso restrito, autenticação, autorização"
 - [ ] Retry com backoff no write do SQLite — docs prometem resiliência a indisponibilidade temporária
 - [ ] Alertas no `/metricas` — case pede "alertas para possíveis erros ou falhas"
 - [ ] Dataset fictício `data/clientes_ficticios.json` — case fala em "lista de clientes"
-- [ ] Exportação do relatório em CSV — plus rápido além do JSON
+- [x] Exportação do relatório em CSV — plus rápido além do JSON (content negotiation: `Accept: text/csv` no `GET /relatorio`)
 - [ ] Atualizar `docs/04` e o roteiro da apresentação para refletir a realidade do código
 
-**Epic 6 — Entrega**
+**Epic Entrega**
 - [x] Documentação final + diagramas
 - [x] README, trade-offs, limitações
 - [x] Criar Swagger com exemplos (OpenAPI em `/docs`)

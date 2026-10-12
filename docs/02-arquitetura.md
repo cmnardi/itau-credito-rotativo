@@ -126,7 +126,8 @@ Decisões: dataclass frozen (domínio puro, sem framework); `Decimal` para valor
 credito-rotativo/
 ├── app/
 │   ├── api/                           # Adapter (FastAPI)
-│   │   ├── main.py                    # POST /avaliacoes, POST /avaliacoes/batch, GET /relatorio
+│   │   ├── main.py                    # POST /avaliacoes, POST /avaliacoes/batch, GET /relatorio (JSON ou CSV via Accept)
+│   │   ├── csv_export.py              # content negotiation + serialização CSV (seções RESUMO/DETALHES)
 │   │   └── schemas.py                 # Pydantic (request/response) com exemplos p/ Swagger
 │   ├── application/                   # Caso de uso
 │   │   └── avaliar_credito.py         # orquestrador: valida → monta cadeia (config) → executa → calcula valor → persiste
