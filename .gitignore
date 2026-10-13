@@ -1,0 +1,31 @@
+# Python — byte-compiled
+__pycache__/
+*.py[cod]
+*.so
+
+# Cobertura e cache de teste
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Runtime local (SQLite, envs)
+*.db
+.env
+.env.*
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Sistema
+.DS_Store
+Thumbs.db
