@@ -20,3 +20,5 @@
 ## Código
 
 A implementação está em [`credito-rotativo/`](credito-rotativo/) — instruções de execução, endpoints e exemplos no [README de lá](credito-rotativo/README.md).
+
+Para exercitar a API de ponta a ponta existe a [collection do Postman](credito-rotativo/postman/credito-rotativo.postman_collection.json): 17 requests com 86 testes cobrindo as variações aprovado/reprovado (uma por caminho das 5 regras), idempotência/replay, batch, relatório JSON/CSV e `/metricas`. Importe no Postman ou rode sem ele com `npx newman run postman/credito-rotativo.postman_collection.json`.

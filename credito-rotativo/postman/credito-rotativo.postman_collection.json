@@ -1,0 +1,874 @@
+{
+  "info": {
+    "_postman_id": "a68c6724-10fa-4faa-bb86-ceabdfe64087",
+    "name": "Crédito Rotativo — Case Itaú",
+    "description": "Coleção para explorar a API de **Crédito Rotativo** (case Itaú) e validar o\nresultado esperado de cada caminho das 5 regras.\n\n## Setup\n\n```bash\ncd credito-rotativo\nCREDITO_PORTA=8001 docker compose up --build    # API em http://127.0.0.1:8001\n```\n\n1. Importe este JSON no Postman.\n2. Ajuste a variável da collection **`base_url`** se a porta for outra\n   (padrão `http://127.0.0.1:8001`).\n3. Use **Run Collection** na ordem: a pasta *03 · Idempotência* passa a\n   `chave_idem` de um request para o outro, e a pasta *06* confere o\n   replay contabilizado.\n\nRodar sem Postman (CI / terminal):\n\n```bash\nnpx newman run postman/credito-rotativo.postman_collection.json\n```\n\n## Pastas\n\n| Pasta | Cobre |\n|---|---|\n| 01 · Saúde e contrato | healthcheck (`/saude`) e contrato OpenAPI |\n| 02 · Avaliações | variações aprovado/reprovado + erros 400/422 |\n| 03 · Idempotência | reenvio do mesmo CPF servido pelo cache (replay) |\n| 04 · Batch | RF1 — lista de clientes num POST só |\n| 05 · Relatório | RF5 em JSON e CSV (content negotiation) |\n| 06 · Operação | invariantes do `/metricas` e contagem de replay |\n\n## Cenários da pasta 02 (configuração padrão)\n\n| Request | Regras | Pontos | Resultado |\n|---|---|---|---|\n| aprovado (30 pts) | R1–R5 passam | 30/30 | aprovado, libera a fatura cheia |\n| aprovado com perfil inativo | R3 dá meio ponto (uso 4%) | 25/30 | **aprovado**, com motivo de alerta e valor ajustado (183,33) |\n| reprovado pela R1 | score 520 < 600 → bloqueio | — | reprovado, short-circuit |\n| reprovado pela R2 | 5 atrasos > 2 → bloqueio | — | reprovado, só R1 registrada |\n| reprovado por pontuação | uso 95% e fatura 9,5× a média zeram R3/R5 | 10/20 | reprovado sem bloqueio |\n| todas as regras aplicadas | só a R5 pontua (inativo + variação 0,45) | 15/20 | reprovado sem bloqueio |\n| 422 | menos de 6 meses de gastos | — | validação Pydantic |\n| 400 | gasto negativo | — | fail-fast do domínio |\n\nOs thresholds vêm das env vars `CREDITO_*` (`app/infrastructure/config.py`):\ncom outra configuração, os valores esperados mudam junto.\n\n## LGPD\n\nNenhum request espera CPF de volta: as respostas trazem `idempotency_key` e o\nrelatório traz `cpf_hash`. Os testes também conferem que nenhum CPF em claro\naparece na resposta.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 · Saúde e contrato",
+      "item": [
+        {
+          "name": "GET /saude — healthcheck",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/saude",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "saude"
+              ]
+            }
+          },
+          "response": [],
+          "description": "Usado pelo healthcheck do Docker Compose (`/saude`).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('responde {\"status\": \"ok\"}', () => pm.expect(pm.response.json().status).to.eql('ok'));",
+                  "pm.test('responde em menos de 1s (NFR de latência)', () => pm.expect(pm.response.responseTime).to.be.below(1000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /openapi.json — contrato",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/openapi.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "openapi.json"
+              ]
+            }
+          },
+          "response": [],
+          "description": "Contrato OpenAPI que alimenta o Swagger (`/docs`).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const spec = pm.response.json();",
+                  "pm.test('OpenAPI 3.x', () => pm.expect(spec.openapi).to.match(/^3\\./));",
+                  "pm.test('expõe os 5 endpoints da API', () =>",
+                  "  pm.expect(Object.keys(spec.paths)).to.include.members([",
+                  "    '/avaliacoes', '/avaliacoes/batch', '/relatorio', '/metricas', '/saude',",
+                  "  ]));",
+                  "pm.test('POST /avaliacoes documenta os 3 exemplos (aprovado/reprovações)', () => {",
+                  "  const exemplos = spec.paths['/avaliacoes'].post.requestBody.content['application/json'].examples;",
+                  "  pm.expect(Object.keys(exemplos)).to.have.members([",
+                  "    'cliente_aprovado', 'reprovado_por_score', 'reprovado_por_atrasos',",
+                  "  ]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 · Avaliações — variações aprovado/reprovado",
+      "item": [
+        {
+          "name": "POST /avaliacoes — aprovado (30 pts)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Silva\",\n  \"cpf\": \"910.220.330-01\",\n  \"score_credito\": 750,\n  \"atrasos_meses\": 0,\n  \"valor_fatura\": \"1000.00\",\n  \"limite_disponivel\": \"4000.00\",\n  \"gastos_ultimos_meses\": [\n    \"1000.00\",\n    \"1200.00\",\n    \"900.00\",\n    \"1100.00\",\n    \"1000.00\",\n    \"1000.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "**Aprovado com todas as regras.** Score 750 (≥600), 0 atrasos, uso do limite 20% (1000/5000, dentro da banda 10–90% → +10), variação de gastos 0,11 (≤0,30 → +10) e fatura 1000 ≤ média 1033 × 1,5 (+10) = **30 de 30 pontos**.\n\nValor: `min(1000 × 1.0, 5000 × 0.50, 10000) × ajuste(30/30) = 1000.00`.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status == aprovado', () => pm.expect(r.status).to.eql('aprovado'));",
+                  "pm.test('valor_liberado == 1000.00 (fatura cheia: ajuste 1.0 com 30/30 pts)', () =>",
+                  "  pm.expect(r.valor_liberado).to.eql('1000.00'));",
+                  "pm.test('sem motivos (nada pendente contra o cliente)', () =>",
+                  "  pm.expect(r.motivos).to.be.an('array').that.is.empty);",
+                  "pm.test('as 5 regras aplicadas, em ordem (bloqueios antes do scoring)', () =>",
+                  "  pm.expect(r.regras_aplicadas).to.eql([",
+                  "    'ScoreMinimoRule', 'HistoricoAtrasosRule', 'UtilizacaoLimiteRule',",
+                  "    'EstabilidadeGastosRule', 'PerfilGastosRule',",
+                  "  ]));",
+                  "pm.test('idempotency_key é SHA-256 (64 hex)', () =>",
+                  "  pm.expect(r.idempotency_key).to.match(/^[0-9a-f]{64}$/));",
+                  "pm.test('LGPD: resposta sem CPF em claro', () =>",
+                  "  pm.expect(pm.response.text()).to.not.match(/\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /avaliacoes — aprovado com perfil inativo (25 pts)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Bia Inativa\",\n  \"cpf\": \"910.220.330-05\",\n  \"score_credito\": 720,\n  \"atrasos_meses\": 0,\n  \"valor_fatura\": \"200.00\",\n  \"limite_disponivel\": \"4800.00\",\n  \"gastos_ultimos_meses\": [\n    \"1000.00\",\n    \"1000.00\",\n    \"1000.00\",\n    \"1000.00\",\n    \"1000.00\",\n    \"1000.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "**Aprovado, mas com pendência nos motivos**: uso do limite 4% (< 10%) dá só **meio ponto** da R3 e vira motivo de alerta — o cliente é aprovado pela R4+R5 (25 ≥ 20), mas mostra que motivos ≠ reprovado.\n\nValor: `200 × (0.50 + 0.50 × 25/30) = 183.33` (aprovação parcial penaliza o valor).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status == aprovado (mesmo com alerta nos motivos)', () =>",
+                  "  pm.expect(r.status).to.eql('aprovado'));",
+                  "pm.test('motivo explica o uso abaixo do mínimo (meio ponto da R3)', () =>",
+                  "  pm.expect(r.motivos.join(' | ')).to.match(/utilização 4\\.00% abaixo do mínimo 10\\.00% \\(perfil inativo\\)/));",
+                  "pm.test('valor com ajuste parcial: 200 × (0.5 + 0.5 × 25/30) = 183.33', () =>",
+                  "  pm.expect(r.valor_liberado).to.eql('183.33'));",
+                  "pm.test('todas as 5 regras avaliaram (sem bloqueio)', () =>",
+                  "  pm.expect(r.regras_aplicadas).to.have.lengthOf(5));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /avaliacoes — reprovado pela R1 (score < 600)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Carlos Souza\",\n  \"cpf\": \"910.220.330-02\",\n  \"score_credito\": 520,\n  \"atrasos_meses\": 0,\n  \"valor_fatura\": \"500.00\",\n  \"limite_disponivel\": \"4500.00\",\n  \"gastos_ultimos_meses\": [\n    \"500.00\",\n    \"500.00\",\n    \"500.00\",\n    \"500.00\",\n    \"500.00\",\n    \"500.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "**Bloqueio da R1**: score 520 < mínimo 600. A cadeia faz **short-circuit** — nenhuma regra é registrada em `regras_aplicadas` e nada além da R1 é avaliado.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200 (reprovado é resultado válido, não erro)', () => pm.response.to.have.status(200));",
+                  "pm.test('status == reprovado', () => pm.expect(r.status).to.eql('reprovado'));",
+                  "pm.test('motivo aponta o score mínimo', () => pm.expect(r.motivos[0]).to.eql('score 520 < mínimo 600'));",
+                  "pm.test('short-circuit: cadeia parou na R1 (nenhuma regra registrada)', () =>",
+                  "  pm.expect(r.regras_aplicadas).to.be.an('array').that.is.empty);",
+                  "pm.test('reprovado não libera valor', () => pm.expect(r.valor_liberado).to.eql('0.00'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /avaliacoes — reprovado pela R2 (atrasos > 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Maria Lima\",\n  \"cpf\": \"910.220.330-03\",\n  \"score_credito\": 800,\n  \"atrasos_meses\": 5,\n  \"valor_fatura\": \"800.00\",\n  \"limite_disponivel\": \"4200.00\",\n  \"gastos_ultimos_meses\": [\n    \"800.00\",\n    \"800.00\",\n    \"800.00\",\n    \"800.00\",\n    \"800.00\",\n    \"800.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "**Bloqueio da R2**: 5 atrasos > janela de 2 meses. A R1 passou (score 800) e aparece registrada; a R2 para a cadeia antes do scoring.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status == reprovado', () => pm.expect(r.status).to.eql('reprovado'));",
+                  "pm.test('motivo aponta a janela de atrasos', () =>",
+                  "  pm.expect(r.motivos[0]).to.eql('atrasos em 5 mês(es) > máximo 2'));",
+                  "pm.test('R1 passou e R2 parou a cadeia (scoring nem começou)', () =>",
+                  "  pm.expect(r.regras_aplicadas).to.eql(['ScoreMinimoRule']));",
+                  "pm.test('reprovado não libera valor', () => pm.expect(r.valor_liberado).to.eql('0.00'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /avaliacoes — reprovado por pontuação (10 de 20 pts)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Pedro Alta\",\n  \"cpf\": \"910.220.330-04\",\n  \"score_credito\": 700,\n  \"atrasos_meses\": 1,\n  \"valor_fatura\": \"9500.00\",\n  \"limite_disponivel\": \"500.00\",\n  \"gastos_ultimos_meses\": [\n    \"1000.00\",\n    \"1000.00\",\n    \"1000.00\",\n    \"1000.00\",\n    \"1000.00\",\n    \"1000.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "**Reprovação por scoring, sem bloqueio**: score 700 e 1 atraso passam; uso 95% > 90% (R3: 0 pts, fora da banda) e fatura 9500 = 9,5× a média (R5: 0 pts) — só a R4 soma 10. **10 < 20 → reprovado**.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status == reprovado', () => pm.expect(r.status).to.eql('reprovado'));",
+                  "pm.test('motivo final explica a pontuação (10 < 20)', () =>",
+                  "  pm.expect(r.motivos).to.include('score acumulado 10 < limite de aprovação 20'));",
+                  "pm.test('R3 não aplicada: uso 95% > 90% máximo (0 pontos, fora da banda)', () =>",
+                  "  pm.expect(r.regras_aplicadas).to.not.include('UtilizacaoLimiteRule'));",
+                  "pm.test('R5 reprovou: fatura acima do histórico', () =>",
+                  "  pm.expect(r.motivos.join(' | ')).to.match(/fatura 9500\\.00 acima do histórico/));",
+                  "pm.test('sem bloqueio: 4 regras registradas (todas menos a R3)', () =>",
+                  "  pm.expect(r.regras_aplicadas).to.have.lengthOf(4));",
+                  "pm.test('reprovado não libera valor', () => pm.expect(r.valor_liberado).to.eql('0.00'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /avaliacoes — todas as regras aplicadas, ainda reprovado (15 pts)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Rui Instável\",\n  \"cpf\": \"910.220.330-06\",\n  \"score_credito\": 680,\n  \"atrasos_meses\": 0,\n  \"valor_fatura\": \"150.00\",\n  \"limite_disponivel\": \"4000.00\",\n  \"gastos_ultimos_meses\": [\n    \"500.00\",\n    \"1500.00\",\n    \"600.00\",\n    \"1400.00\",\n    \"550.00\",\n    \"1450.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "**Caso-limite do threshold**: as 5 regras avaliaram e só a R5 pontuou. Uso 3,6% → meio ponto (5); variação 0,45 > 0,30 → R4 zera; fatura 150 ≤ média 1000 × 1,5 → +10. **15 < 20 → reprovado** mesmo sem bloqueio.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status == reprovado mesmo sem bloqueio', () => pm.expect(r.status).to.eql('reprovado'));",
+                  "pm.test('todas as 5 regras avaliaram (nenhum bloqueio)', () =>",
+                  "  pm.expect(r.regras_aplicadas).to.have.lengthOf(5));",
+                  "pm.test('R4 reprovou: variação 0.45 > 0.30', () =>",
+                  "  pm.expect(r.motivos.join(' | ')).to.match(/variação de gastos 0\\.45 > máximo 0\\.30/));",
+                  "pm.test('meio ponto (inativo) + R5 = 15, abaixo do limite 20', () =>",
+                  "  pm.expect(r.motivos).to.include('score acumulado 15 < limite de aprovação 20'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /avaliacoes — 422 (menos de 6 meses de gastos)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Poucos Meses\",\n  \"cpf\": \"910.220.330-07\",\n  \"score_credito\": 700,\n  \"atrasos_meses\": 0,\n  \"valor_fatura\": \"900.00\",\n  \"limite_disponivel\": \"4100.00\",\n  \"gastos_ultimos_meses\": [\n    \"100.00\",\n    \"100.00\",\n    \"100.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "Validação do schema (Pydantic) antes de entrar no domínio: mínimo de 6 meses de histórico.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422 (validação de entrada)', () => pm.response.to.have.status(422));",
+                  "const detail = pm.response.json().detail;",
+                  "pm.test('aponta o campo inválido', () => pm.expect(detail[0].loc).to.include('gastos_ultimos_meses'));",
+                  "pm.test('mensagem explica o mínimo de 6 itens', () => pm.expect(detail[0].msg).to.match(/at least 6 items/));",
+                  "pm.test('resposta amigável, sem stack trace', () =>",
+                  "  pm.expect(pm.response.text()).to.not.include('Traceback'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /avaliacoes — 400 (gasto negativo rejeitado pelo domínio)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Gasto Negativo\",\n  \"cpf\": \"910.220.330-08\",\n  \"score_credito\": 700,\n  \"atrasos_meses\": 0,\n  \"valor_fatura\": \"900.00\",\n  \"limite_disponivel\": \"4100.00\",\n  \"gastos_ultimos_meses\": [\n    \"1000.00\",\n    \"-500.00\",\n    \"900.00\",\n    \"1100.00\",\n    \"1000.00\",\n    \"1000.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "Passa pelo schema (Decimal aceita negativo), mas o domínio valida fail-fast: gasto negativo não faz sentido de negócio → 400 com mensagem em PT-BR.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400 (fail-fast do domínio)', () => pm.response.to.have.status(400));",
+                  "pm.test('mensagem amigável em português', () =>",
+                  "  pm.expect(pm.response.json().detail).to.match(/negativos/));",
+                  "pm.test('sem stack trace na resposta', () => pm.expect(pm.response.text()).to.not.include('Traceback'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 · Idempotência e replay",
+      "item": [
+        {
+          "name": "POST /avaliacoes — 1ª submissão",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Rita Teste\",\n  \"cpf\": \"910.220.330-09\",\n  \"score_credito\": 730,\n  \"atrasos_meses\": 0,\n  \"valor_fatura\": \"1200.00\",\n  \"limite_disponivel\": \"4000.00\",\n  \"gastos_ultimos_meses\": [\n    \"1200.00\",\n    \"1200.00\",\n    \"1200.00\",\n    \"1200.00\",\n    \"1200.00\",\n    \"1200.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "Primeira submissão do CPF `910.220.330-09`: avalia e persiste. Guarda `chave_idem`/`status_idem` para o request seguinte comparar o replay.\n\nRode em sequência com o request abaixo (Use *Run Collection*).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('aprovado com 30 pts (3 critérios de scoring)', () => pm.expect(r.status).to.eql('aprovado'));",
+                  "pm.test('valor_liberado == 1200.00 (fatura cheia, ajuste 1.0)', () =>",
+                  "  pm.expect(r.valor_liberado).to.eql('1200.00'));",
+                  "pm.collectionVariables.set('chave_idem', r.idempotency_key);",
+                  "pm.collectionVariables.set('status_idem', r.status);",
+                  "pm.test('chave guardada para o request de replay', () =>",
+                  "  pm.expect(pm.collectionVariables.get('chave_idem')).to.eql(r.idempotency_key));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /avaliacoes — reenvio (replay do cache)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Rita Teste\",\n  \"cpf\": \"910.220.330-09\",\n  \"score_credito\": 500,\n  \"atrasos_meses\": 0,\n  \"valor_fatura\": \"1200.00\",\n  \"limite_disponivel\": \"4000.00\",\n  \"gastos_ultimos_meses\": [\n    \"1200.00\",\n    \"1200.00\",\n    \"1200.00\",\n    \"1200.00\",\n    \"1200.00\",\n    \"1200.00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "**Mesmo CPF, payload diferente** (score 500 — que reprovaria pela R1). A chave de idempotência é o hash do CPF, então a API devolve o resultado original **sem reavaliar**: prova de que o replay serve o cache.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('payload enviado teria reprovado (score 500 < 600)', () =>",
+                  "  pm.expect(pm.request.body.raw).to.match(/\"score_credito\":\\s*500/));",
+                  "pm.test('mesma idempotency_key da 1ª submissão', () =>",
+                  "  pm.expect(r.idempotency_key).to.eql(pm.collectionVariables.get('chave_idem')));",
+                  "pm.test('resultado original, sem reavaliar (continua aprovado)', () => {",
+                  "  pm.expect(r.status).to.eql(pm.collectionVariables.get('status_idem'));",
+                  "  pm.expect(r.valor_liberado).to.eql('1200.00');",
+                  "});",
+                  "pm.collectionVariables.set('rodou_replay', '1');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 · Batch (lista de clientes)",
+      "item": [
+        {
+          "name": "POST /avaliacoes/batch — lista mista (RF1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/avaliacoes/batch",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "avaliacoes",
+                "batch"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"nome\": \"Otavio Bom\",\n    \"cpf\": \"910.220.330-10\",\n    \"score_credito\": 730,\n    \"atrasos_meses\": 0,\n    \"valor_fatura\": \"950.00\",\n    \"limite_disponivel\": \"4000.00\",\n    \"gastos_ultimos_meses\": [\n      \"1000.00\",\n      \"900.00\",\n      \"1100.00\",\n      \"950.00\",\n      \"1000.00\",\n      \"950.00\"\n    ]\n  },\n  {\n    \"nome\": \"Sara Quase\",\n    \"cpf\": \"910.220.330-11\",\n    \"score_credito\": 599,\n    \"atrasos_meses\": 0,\n    \"valor_fatura\": \"950.00\",\n    \"limite_disponivel\": \"4000.00\",\n    \"gastos_ultimos_meses\": [\n      \"1000.00\",\n      \"900.00\",\n      \"1100.00\",\n      \"950.00\",\n      \"1000.00\",\n      \"950.00\"\n    ]\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "description": "RF1: avaliar uma **lista de clientes** (mesmo body de `data/clientes_ficticios.json`).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('uma resposta por cliente, na mesma ordem', () => {",
+                  "  pm.expect(r).to.be.an('array').with.lengthOf(2);",
+                  "  pm.expect(r.map(a => a.status)).to.eql(['aprovado', 'reprovado']);",
+                  "});",
+                  "pm.test('[0] aprovado (3 critérios de scoring)', () => pm.expect(r[0].status).to.eql('aprovado'));",
+                  "pm.test('[1] reprovado pela R1 (score 599 — uma unidade abaixo do mínimo)', () => {",
+                  "  pm.expect(r[1].status).to.eql('reprovado');",
+                  "  pm.expect(r[1].motivos[0]).to.match(/score 599 < mínimo 600/);",
+                  "});",
+                  "pm.test('chave de idempotência independente por cliente', () =>",
+                  "  pm.expect(r[0].idempotency_key).to.not.eql(r[1].idempotency_key));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 · Relatório (RF5)",
+      "item": [
+        {
+          "name": "GET /relatorio — JSON (RF5)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/relatorio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "relatorio"
+              ]
+            }
+          },
+          "response": [],
+          "description": "RF5: aprovados, reprovados e valores liberados — acumulado desde o boot da API.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('campos do RF5 presentes', () =>",
+                  "  pm.expect(Object.keys(r)).to.include.members([",
+                  "    'total_avaliacoes', 'aprovados', 'reprovados', 'valor_total_liberado',",
+                  "    'taxa_aprovacao', 'avaliacoes',",
+                  "  ]));",
+                  "pm.test('invariante: aprovados + reprovados == total_avaliacoes', () =>",
+                  "  pm.expect(r.aprovados + r.reprovados).to.eql(r.total_avaliacoes));",
+                  "pm.test('taxa_aprovacao coerente (arredondada em 4 casas)', () =>",
+                  "  pm.expect(r.taxa_aprovacao).to.be.closeTo(r.aprovados / r.total_avaliacoes, 0.0001));",
+                  "pm.test('valor_total_liberado em BRL com 2 casas', () =>",
+                  "  pm.expect(r.valor_total_liberado).to.match(/^\\d+\\.\\d{2}$/));",
+                  "pm.test('lista bate com os totais e cada item tem status + chave', () => {",
+                  "  pm.expect(r.avaliacoes).to.have.lengthOf(r.total_avaliacoes);",
+                  "  r.avaliacoes.forEach(a => {",
+                  "    pm.expect(a.status).to.be.oneOf(['aprovado', 'reprovado']);",
+                  "    // chave = hash do CPF (64 hex) ou a X-Idempotency-Key enviada pelo cliente",
+                  "    pm.expect(a.idempotency_key).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /relatorio — CSV (Accept: text/csv)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/relatorio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "relatorio"
+              ]
+            }
+          },
+          "response": [],
+          "description": "Content negotiation: o mesmo recurso, agora como download em CSV (`;` para Excel pt-BR).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const corpo = pm.response.text();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type: text/csv', () =>",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'));",
+                  "pm.test('Content-Disposition: download nomeado relatorio_avaliacoes.csv', () =>",
+                  "  pm.expect(pm.response.headers.get('Content-Disposition')).to.include('relatorio_avaliacoes.csv'));",
+                  "pm.test('duas seções: RESUMO e DETALHES', () => {",
+                  "  pm.expect(corpo).to.match(/^RESUMO\\n/);",
+                  "  pm.expect(corpo).to.include('\\n\\nDETALHES\\n');",
+                  "});",
+                  "pm.test('resumo com totais em ponto-e-vírgula (abre no Excel pt-BR)', () =>",
+                  "  pm.expect(corpo).to.match(/total_avaliacoes;\\d+/));",
+                  "pm.test('LGPD: leva cpf_hash e nunca o CPF em claro', () => {",
+                  "  pm.expect(corpo).to.include('cpf_hash');",
+                  "  pm.expect(corpo).to.not.match(/\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 · Operação (/metricas)",
+      "item": [
+        {
+          "name": "GET /metricas — snapshot e invariantes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/metricas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "metricas"
+              ]
+            }
+          },
+          "response": [],
+          "description": "Métricas em memória + alertas avaliados contra os limites `CREDITO_ALERTA_*`.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('campos do snapshot', () =>",
+                  "  pm.expect(Object.keys(r)).to.include.members([",
+                  "    'total', 'aprovacoes', 'reprovacoes', 'falhas', 'replays', 'taxa_aprovacao',",
+                  "    'taxa_reprovacao', 'taxa_erro', 'ultimo_erro', 'latencia_p50_ms',",
+                  "    'latencia_p95_ms', 'status', 'alertas',",
+                  "  ]));",
+                  "pm.test('invariante: aprovacoes + reprovacoes == total (decisões novas)', () =>",
+                  "  pm.expect(r.aprovacoes + r.reprovacoes).to.eql(r.total));",
+                  "pm.test('taxa_aprovacao coerente com os totais', () =>",
+                  "  pm.expect(r.taxa_aprovacao).to.be.closeTo(r.total ? r.aprovacoes / r.total : 0, 0.0001));",
+                  "pm.test('latência: p50 <= p95', () => pm.expect(r.latencia_p50_ms).to.be.at.most(r.latencia_p95_ms));",
+                  "pm.test('status coerente com a presença de alertas', () =>",
+                  "  pm.expect(r.status).to.eql(r.alertas.length > 0 ? 'alerta' : 'ok'));",
+                  "pm.test('alertas só com códigos conhecidos', () =>",
+                  "  r.alertas.forEach(a => pm.expect([",
+                  "    'latencia_p95_acima_do_slo', 'taxa_de_erro_acima_do_limite', 'taxa_de_reprovacao_anomala',",
+                  "  ]).to.include(a.codigo)));",
+                  "pm.test('falha registra ultimo_erro; sem falha, null', () => {",
+                  "  if (r.falhas > 0) pm.expect(r.ultimo_erro).to.be.a('string');",
+                  "  else pm.expect(r.ultimo_erro).to.eql(null);",
+                  "});",
+                  "pm.test('LGPD: snapshot sem PII', () =>",
+                  "  pm.expect(pm.response.text()).to.not.match(/\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /metricas — replay contabilizado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/metricas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "metricas"
+              ]
+            }
+          },
+          "response": [],
+          "description": "O replay da pasta 03 não gera decisão nova, mas fica visível em `replays` — `total`/`taxas` continuam contando só avaliações de verdade.\n\nA asserção `replays >= 1` pressupõe a pasta 03 rodada antes (rode a coleção inteira com *Run Collection*).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('replays é número não negativo', () => pm.expect(r.replays).to.be.a('number').and.at.least(0));",
+                  "if (pm.collectionVariables.get('rodou_replay')) {",
+                  "  pm.test('replay aparece em replays (>= 1)', () => pm.expect(r.replays).to.be.at.least(1));",
+                  "  pm.test('replay não infla total (só decisões novas contam)', () =>",
+                  "    pm.expect(r.aprovacoes + r.reprovacoes).to.eql(r.total));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8001",
+      "type": "string"
+    }
+  ]
+}

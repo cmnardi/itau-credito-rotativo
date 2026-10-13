@@ -95,6 +95,32 @@ do RESUMO (`pd.read_csv("relatorio.csv", sep=";", skiprows=9)`, contando a
 linha em branco). O CSV leva o `cpf_hash` — nunca o CPF — porque a lista de
 clientes precisa ser rastreável sem expor PII.
 
+### Collection Postman (endpoints, variações e testes)
+
+[`postman/credito-rotativo.postman_collection.json`](postman/credito-rotativo.postman_collection.json)
+cobre os 5 endpoints com **17 requests e 86 testes** que validam o resultado
+esperado de cada caminho das regras:
+
+| Pasta | Cobre |
+|---|---|
+| 01 · Saúde e contrato | healthcheck (`/saude`) e contrato OpenAPI |
+| 02 · Avaliações | aprovado (30 pts), aprovado com perfil inativo (25 pts + motivo de alerta), reprovado por R1 (bloqueio), por R2 (bloqueio), por pontuação (10 pts) e com todas as regras aplicadas (15 pts) + erros 400 e 422 |
+| 03 · Idempotência | reenvio do mesmo CPF com payload diferente → servido pelo cache (replay) |
+| 04 · Batch | lista mista: aprovado + reprovado, na ordem |
+| 05 · Relatório | RF5 em JSON e em CSV (content negotiation) |
+| 06 · Operação | invariantes do `/metricas` (aprovados + reprovados = total, p50 ≤ p95, alertas) e replay contabilizado |
+
+```bash
+# Postman: importe o JSON e use "Run Collection" (a pasta 03 passa a
+# chave entre requests; a variável da collection é `base_url`, padrão 8001)
+# Sem Postman (mesmos testes, servem de smoke test na CI):
+npx newman run postman/credito-rotativo.postman_collection.json
+```
+
+Os payloads usam CPFs próprios da collection (`910.220.330-xx`, distintos do
+dataset) e os valores esperados assumem a **configuração padrão** — trocando
+as `CREDITO_*`, recalibre os números dentro dos testes.
+
 ### Dataset fictício (RF1 — lista de clientes)
 
 O case pede simular a avaliação **para uma lista de clientes**: ela está em
