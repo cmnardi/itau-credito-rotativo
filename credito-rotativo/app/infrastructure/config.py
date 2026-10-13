@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     valor_pct_limite: Decimal = Decimal("0.50")
     valor_teto: Decimal = Decimal("10000.00")
     valor_ajuste_min: Decimal = Decimal("0.50")
+    # Alertas (NFR: "alertas para possíveis erros ou falhas")
+    alerta_latencia_p95_ms: float = 1000.0  # NFR de latência: ≤ 1s por avaliação
+    alerta_taxa_erro_max: float = 0.05  # falhas acima de 5% do volume processado
+    alerta_reprovacao_min: float = 0.90  # reprovação ≥ 90% → regra/config suspeita
     # Persistência: "memoria" (padrão) ou "sqlite" (arquivo)
     persistencia: Literal["memoria", "sqlite"] = "memoria"
     db_path: str = "avaliacoes.db"

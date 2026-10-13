@@ -3,13 +3,24 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
 from app.api.main import app
+from app.application.avaliar_credito import AvaliarCreditoUseCase
+from app.infrastructure.config import Settings
+from app.infrastructure.observability import Metricas
+from app.infrastructure.persistence import RepositorioAvaliacoes
 
 client = TestClient(app)
+
+CODIGOS_ALERTA = {
+    "latencia_p95_acima_do_slo",
+    "taxa_de_erro_acima_do_limite",
+    "taxa_de_reprovacao_anomala",
+}
 
 
 def payload(**overrides) -> dict:
@@ -87,6 +98,56 @@ def test_metricas():
     resp = client.get("/metricas")
     assert resp.status_code == 200
     assert resp.json()["total"] >= 1
+
+
+def test_metricas_expoe_alertas_e_status():
+    """`/metricas` junta métricas + alertas avaliados + status agregado."""
+    resp = client.get("/metricas")
+    assert resp.status_code == 200
+    corpo = resp.json()
+
+    # sem erros de processamento nos testes que rodam via API
+    assert corpo["falhas"] == 0
+    assert corpo["taxa_erro"] == 0.0
+    assert corpo["ultimo_erro"] is None
+
+    assert isinstance(corpo["alertas"], list)
+    assert all(a["codigo"] in CODIGOS_ALERTA for a in corpo["alertas"])
+    assert corpo["status"] == ("alerta" if corpo["alertas"] else "ok")
+
+
+def test_falha_no_pipeline_vira_alerta_no_metricas(monkeypatch, caplog):
+    """NFR: erro de processamento (estado FALHA) vira alerta observável."""
+    from app.api import main as api
+    from app.domain.rules.perfil_gastos import PerfilGastosRule
+
+    # caso de uso isolado com limite de taxa de erro em 0 → qualquer falha alerta
+    usecase_falho = AvaliarCreditoUseCase(
+        Settings(),
+        RepositorioAvaliacoes(),
+        metricas=Metricas(limite_taxa_erro=0.0),
+    )
+    monkeypatch.setattr(api, "_usecase", usecase_falho)
+
+    def _explodir(self, context):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(PerfilGastosRule, "avaliar", _explodir)
+    cliente = TestClient(api.app, raise_server_exceptions=False)
+    assert cliente.post("/avaliacoes", json=payload(cpf="777.888.999-00")).status_code == 500
+
+    with caplog.at_level(logging.WARNING, logger="credito_rotativo"):
+        corpo = cliente.get("/metricas").json()
+
+    assert corpo["falhas"] == 1
+    assert corpo["ultimo_erro"] == "RuntimeError"
+    assert corpo["taxa_erro"] == 1.0
+    assert corpo["status"] == "alerta"
+    assert [a["codigo"] for a in corpo["alertas"]] == ["taxa_de_erro_acima_do_limite"]
+    eventos = [
+        r.getMessage() for r in caplog.records if r.name == "credito_rotativo"
+    ]
+    assert "alerta_disparado" in eventos  # a transição também vira log
 
 
 def test_validacao_rejeita_gastos_insuficientes():

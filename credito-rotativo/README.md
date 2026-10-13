@@ -20,6 +20,12 @@ docker compose up --build     # API em http://127.0.0.1:8000 (SQLite em volume)
 docker compose down -v        # para e remove o volume de dados
 ```
 
+Se a porta 8000 da máquina já estiver em uso, mapeie em outra:
+
+```bash
+CREDITO_PORTA=8001 docker compose up --build   # API em http://127.0.0.1:8001
+```
+
 Para subir **com banco em memória** (sem persistência entre reinícios):
 
 ```bash
@@ -38,7 +44,7 @@ sobrevivem a reinícios do container. Para rodar sem Docker:
 | POST | `/avaliacoes` | Avalia um cliente |
 | POST | `/avaliacoes/batch` | Avalia uma lista de clientes |
 | GET | `/relatorio` | Aprovados, reprovados e valores liberados (JSON; `Accept: text/csv` → CSV) |
-| GET | `/metricas` | Volume, taxa de aprovação, latência p50/p95 |
+| GET | `/metricas` | Volume, taxa de aprovação, latência p50/p95 e **alertas** (erros/falhas) |
 | GET | `/saude` | Healthcheck |
 | GET | `/docs` | Swagger (OpenAPI) com exemplos de request/response |
 
@@ -108,6 +114,41 @@ esperado de cada cliente está na tabela viva em
 `tests/integration/test_dataset.py`, que roda o dataset de ponta a ponta
 (schema → API → cadeia → relatório → CSV).
 
+### Alertas em `/metricas` (NFR: "alertas para possíveis erros ou falhas")
+
+O `GET /metricas` devolve as métricas **mais** os alertas avaliados contra
+os limites `CREDITO_ALERTA_*` (calibráveis por env var):
+
+| Código | Severidade | Dispara quando | Env var (default) |
+|---|---|---|---|
+| `latencia_p95_acima_do_slo` | crítico | p95 da latência > limite | `CREDITO_ALERTA_LATENCIA_P95_MS` (1000 = NFR ≤ 1s) |
+| `taxa_de_erro_acima_do_limite` | crítico | falhas ÷ processado > limite | `CREDITO_ALERTA_TAXA_ERRO_MAX` (0.05) |
+| `taxa_de_reprovacao_anomala` | warning | reprovações ÷ total ≥ limite | `CREDITO_ALERTA_REPROVACAO_MIN` (0.90) |
+
+```json
+{
+  "total": 14, "aprovacoes": 9, "reprovacoes": 5, "falhas": 1,
+  "taxa_aprovacao": 0.6429, "taxa_reprovacao": 0.3571, "taxa_erro": 0.0667,
+  "ultimo_erro": "RuntimeError", "latencia_p50_ms": 1.2, "latencia_p95_ms": 3.4,
+  "status": "alerta",
+  "alertas": [
+    {
+      "codigo": "taxa_de_erro_acima_do_limite",
+      "severidade": "critico",
+      "mensagem": "taxa de erro 6.67% acima do limite 5.00% — última falha: RuntimeError",
+      "valor": 0.0667,
+      "limite": 0.05
+    }
+  ]
+}
+```
+
+`status` é `ok` sem alerta e `alerta` com um ou mais ativos. Cada
+**transição** também vira log estruturado (`alerta_disparado` em WARNING,
+`alerta_encerrado` em INFO) — quem faz polling em `/metricas` não gera
+evento repetido. A avaliação é uma função pura do snapshot (testável sem
+dormir) e as falhas entram pelo caminho de exceção da cadeia.
+
 ## Arquitetura (Ports & Adapters)
 
 ```
@@ -153,7 +194,8 @@ Veja a tabela completa em `plano.md` (seção 7).
 - **LGPD:** CPF hasheado (SHA-256 + salt) no adapter; nada de PII
   persistido ou logado.
 - **Observabilidade:** logs via `logging` e métricas em memória
-  (volume, taxa de aprovação, latência p50/p95) em `/metricas`.
+  (volume, taxa de aprovação, latência p50/p95) em `/metricas`, que também
+  avalia os **alertas** de erros/falhas (abaixo).
 - **Resiliência:** idempotência na submissão; máquina de estados
   (RECEBIDO → EM_AVALIACAO → AVALIADO/FALHA) permite retomada.
 

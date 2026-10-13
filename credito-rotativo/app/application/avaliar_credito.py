@@ -34,7 +34,15 @@ class AvaliarCreditoUseCase:
     ) -> None:
         self.config = config
         self.repositorio = repositorio
-        self.metricas = metricas if metricas is not None else Metricas()
+        self.metricas = (
+            metricas
+            if metricas is not None
+            else Metricas(
+                limite_latencia_p95_ms=config.alerta_latencia_p95_ms,
+                limite_taxa_erro=config.alerta_taxa_erro_max,
+                limite_taxa_reprovacao=config.alerta_reprovacao_min,
+            )
+        )
         # Regras são stateless: a cadeia é construída uma vez e reutilizada
         # (cache de regras — meta de latência ≤ 1s por avaliação).
         self._cadeia = montar_cadeia(config)
@@ -67,6 +75,9 @@ class AvaliarCreditoUseCase:
                 correlation_id=idempotency_key,
                 erro=type(exc).__name__,
             )
+            if self.metricas is not None:
+                # Alimenta a taxa de erro do `/metricas` (alerta de falhas).
+                self.metricas.registrar_falha(type(exc).__name__)
             raise
         finally:
             if self.metricas is not None:

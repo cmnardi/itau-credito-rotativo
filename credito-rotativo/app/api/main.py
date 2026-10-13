@@ -5,7 +5,7 @@ Endpoints:
 - POST /avaliacoes/batch  — avalia uma lista de clientes
 - GET  /relatorio         — aprovados, reprovados e valores liberados
                            (JSON; com `Accept: text/csv` devolve o download em CSV)
-- GET  /metricas          — volume, taxa de aprovação, latência p50/p95
+- GET  /metricas          — volume, latência p50/p95 e alertas (erros/falhas)
 - GET  /saude             — healthcheck
 - GET  /docs              — Swagger (OpenAPI) com exemplos de request/response
 
@@ -201,6 +201,20 @@ def relatorio(
     )
 
 
-@app.get("/metricas")
+@app.get(
+    "/metricas",
+    summary="Volume, latência e alertas de erros/falhas",
+    description=(
+        "Métricas em memória (volume, aprovação/reprovação, falhas, latência "
+        "p50/p95) mais os alertas avaliados contra os limites "
+        "`CREDITO_ALERTA_*`: `latencia_p95_acima_do_slo` (crítico), "
+        "`taxa_de_erro_acima_do_limite` (crítico) e "
+        "`taxa_de_reprovacao_anomala` (warning). `status` é `ok` sem alerta e "
+        "`alerta` com um ou mais ativos; cada transição também vira log "
+        "estruturado (`alerta_disparado` / `alerta_encerrado`)."
+    ),
+)
 def metricas() -> dict:
-    return _usecase.metricas.snapshot()
+    snapshot = _usecase.metricas.snapshot()
+    alertas = _usecase.metricas.avaliar_alertas(snapshot)
+    return {**snapshot, "status": "alerta" if alertas else "ok", "alertas": alertas}
