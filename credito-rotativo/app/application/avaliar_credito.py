@@ -55,6 +55,9 @@ class AvaliarCreditoUseCase:
                 correlation_id=idempotency_key,
                 cpf_hash=customer.cpf_hash,
             )
+            if self.metricas is not None:
+                # Conta à parte: sem nova decisão, sem latência nova.
+                self.metricas.registrar_replay()
             return existente
 
         log_evento(

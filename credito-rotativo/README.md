@@ -44,7 +44,7 @@ sobrevivem a reinícios do container. Para rodar sem Docker:
 | POST | `/avaliacoes` | Avalia um cliente |
 | POST | `/avaliacoes/batch` | Avalia uma lista de clientes |
 | GET | `/relatorio` | Aprovados, reprovados e valores liberados (JSON; `Accept: text/csv` → CSV) |
-| GET | `/metricas` | Volume, taxa de aprovação, latência p50/p95 e **alertas** (erros/falhas) |
+| GET | `/metricas` | Volume, taxa de aprovação, latência p50/p95, **replays** (idempotência) e **alertas** (erros/falhas) |
 | GET | `/saude` | Healthcheck |
 | GET | `/docs` | Swagger (OpenAPI) com exemplos de request/response |
 
@@ -58,7 +58,9 @@ curl -X POST http://127.0.0.1:8000/avaliacoes \
 ```
 
 Idempotência: envie `X-Idempotency-Key` (opcional); por padrão a chave é o
-hash do CPF, então a mesma submissão não reavalia o cliente.
+hash do CPF, então a mesma submissão não reavalia o cliente. O reenvio não
+some da observabilidade: ele vira `replays` no `GET /metricas`, enquanto
+`total` continua contando só decisões novas (sem inflar as taxas).
 
 ### Exportar o relatório em CSV (content negotiation)
 
@@ -194,8 +196,8 @@ Veja a tabela completa em `plano.md` (seção 7).
 - **LGPD:** CPF hasheado (SHA-256 + salt) no adapter; nada de PII
   persistido ou logado.
 - **Observabilidade:** logs via `logging` e métricas em memória
-  (volume, taxa de aprovação, latência p50/p95) em `/metricas`, que também
-  avalia os **alertas** de erros/falhas (abaixo).
+  (volume, taxa de aprovação, latência p50/p95, replays idempotentes) em
+  `/metricas`, que também avalia os **alertas** de erros/falhas (abaixo).
 - **Resiliência:** idempotência na submissão; retry com backoff exponencial
   no write do SQLite (`CREDITO_PERSISTENCIA_RETRY_*`); máquina de estados
   (RECEBIDO → EM_AVALIACAO → AVALIADO/FALHA) permite retomada.

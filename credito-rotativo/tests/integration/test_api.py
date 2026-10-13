@@ -100,6 +100,25 @@ def test_metricas():
     assert resp.json()["total"] >= 1
 
 
+def test_metricas_conta_replay_idempotente():
+    """Reenvio com a mesma chave não reavalia, mas o request fica visível
+    em `replays` — sem inflar `total` nem as taxas."""
+    antes = client.get("/metricas").json()
+    chave = "replay-metricas-1"
+    r1 = client.post("/avaliacoes", json=payload(), headers={"X-Idempotency-Key": chave})
+    r2 = client.post(
+        "/avaliacoes",
+        json=payload(cpf="999.888.777-66", score_credito=100),
+        headers={"X-Idempotency-Key": chave},
+    )
+    assert r1.json() == r2.json()  # segundo veio do cache
+    depois = client.get("/metricas").json()
+
+    assert depois["total"] - antes["total"] == 1  # uma decisão nova
+    assert depois["replays"] - antes["replays"] == 1  # um request em replay
+    assert depois["falhas"] == antes["falhas"]
+
+
 def test_metricas_expoe_alertas_e_status():
     """`/metricas` junta métricas + alertas avaliados + status agregado."""
     resp = client.get("/metricas")
@@ -110,6 +129,7 @@ def test_metricas_expoe_alertas_e_status():
     assert corpo["falhas"] == 0
     assert corpo["taxa_erro"] == 0.0
     assert corpo["ultimo_erro"] is None
+    assert isinstance(corpo["replays"], int)  # replay idempotente visível
 
     assert isinstance(corpo["alertas"], list)
     assert all(a["codigo"] in CODIGOS_ALERTA for a in corpo["alertas"])

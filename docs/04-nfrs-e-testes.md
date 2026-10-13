@@ -5,7 +5,7 @@
 - **Latência:** regras O(1), cache de regras, processamento em memória
 - **Escalabilidade:** serviço stateless, fila + workers (simulados), batch
 - **Segurança/LGPD:** hash com salt no CPF, criptografia de campos sensíveis, logs sem PII, controle de acesso no **API gateway** (antes de a requisição chegar na app)
-- **Observabilidade:** logs estruturados (corr. ID), métricas (volume, taxa aprovação/reprovação, latência p50/p95), alertas
+- **Observabilidade:** logs estruturados (corr. ID), métricas (volume, taxa aprovação/reprovação, replays idempotentes, latência p50/p95), alertas
 - **Resiliência:** retry com backoff exponencial no write do SQLite (`CREDITO_PERSISTENCIA_RETRY_*`), idempotência na submissão, máquina de estados FALHA → EM_AVALIACAO (circuit breaker e fila: seams, ver backlog)
 
 ## 4.2 Estratégia de Testes

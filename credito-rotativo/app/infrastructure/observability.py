@@ -66,7 +66,8 @@ def _alerta(
 
 class Metricas:
     """Métricas em memória: volume, taxa de aprovação/reprovação, falhas de
-    processamento e latência p50/p95 — a base dos alertas do `/metricas`.
+    processamento, replays idempotentes e latência p50/p95 — a base dos
+    alertas do `/metricas`.
 
     Os limites vêm da configuração (`CREDITO_ALERTA_*`); a avaliação é uma
     função pura do snapshot (testável sem simular tempo real) e cada alerta
@@ -84,6 +85,7 @@ class Metricas:
         self.aprovacoes = 0
         self.reprovacoes = 0
         self.falhas = 0
+        self.replays = 0
         self.ultimo_erro: str | None = None
         self._latencias_ms: list[float] = []
         self._limites = {
@@ -107,6 +109,16 @@ class Metricas:
             self.falhas += 1
             self.ultimo_erro = erro
 
+    def registrar_replay(self) -> None:
+        """Replay idempotente: request atendido pelo cache, sem nova decisão.
+
+        Conta **à parte** de `total` (que mede decisões tomadas) e não entra
+        nas taxas nem na latência — fica visível justamente pra mostrar que a
+        idempotência está segurando reenvios (sem duplicar avaliação).
+        """
+        with self._lock:
+            self.replays += 1
+
     def registrar_latencia(self, latencia_ms: float) -> None:
         with self._lock:
             self._latencias_ms.append(latencia_ms)
@@ -120,6 +132,7 @@ class Metricas:
                 "aprovacoes": self.aprovacoes,
                 "reprovacoes": self.reprovacoes,
                 "falhas": self.falhas,
+                "replays": self.replays,
                 "taxa_aprovacao": round(self.aprovacoes / self.total, 4)
                 if self.total
                 else 0.0,

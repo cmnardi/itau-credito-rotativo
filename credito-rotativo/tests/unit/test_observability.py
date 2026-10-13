@@ -66,6 +66,31 @@ def test_log_replay_idempotente(cliente, settings, caplog):
     assert "avaliacao_concluida" not in eventos  # não reavaliou
 
 
+def test_replay_conta_na_metrica_sem_poluir_o_total(cliente, settings):
+    """Replay é request real, mas não é decisão nova: fica em `replays`."""
+    usecase = AvaliarCreditoUseCase(settings, RepositorioAvaliacoes())
+    usecase.executar(cliente(), "corr-replay-metrica")
+    assert usecase.metricas.snapshot()["total"] == 1
+    assert usecase.metricas.snapshot()["replays"] == 0
+
+    usecase.executar(cliente(score_credito=100), "corr-replay-metrica")
+    snap = usecase.metricas.snapshot()
+    assert snap["total"] == 1  # não reavaliou
+    assert snap["replays"] == 1  # mas o request contou
+    assert snap["taxa_erro"] == 0.0  # replay não é falha
+    assert len(usecase.repositorio.listar()) == 1  # nada duplicado
+
+
+def test_replay_nao_dispara_alerta():
+    metricas = Metricas()
+    metricas.registrar_replay()
+    metricas.registrar_replay()
+    snap = metricas.snapshot()
+    assert snap["replays"] == 2
+    assert snap["total"] == 0
+    assert metricas.avaliar_alertas(snap) == []
+
+
 def test_log_falha_em_erro(cliente, settings, caplog, monkeypatch):
     from app.domain.rules.perfil_gastos import PerfilGastosRule
 

@@ -105,8 +105,9 @@ Cada trade-off em 4 tempos: **decisão / alternativa / por quê / quando reavali
 > latência p95 medida em `/metricas`.
 
 **Observabilidade (2 min)**
-> `/metricas`: volume, taxa aprovação/reprovação, latência p50/p95 e
-> falhas (em memória — em produção, Prometheus). Logs estruturados via
+> `/metricas`: volume, taxa aprovação/reprovação, latência p50/p95,
+> falhas e replays idempotentes (em memória — em produção, Prometheus).
+> Logs estruturados via
 > logging sem PII. Alertas avaliados no próprio endpoint e logados só na
 > transição: latência p95 acima do SLO, taxa de erro acima de 5% (estado
 > FALHA) e reprovação anômala ≥ 90% — limites calibráveis em

@@ -5,7 +5,7 @@ Endpoints:
 - POST /avaliacoes/batch  — avalia uma lista de clientes
 - GET  /relatorio         — aprovados, reprovados e valores liberados
                            (JSON; com `Accept: text/csv` devolve o download em CSV)
-- GET  /metricas          — volume, latência p50/p95 e alertas (erros/falhas)
+- GET  /metricas          — volume, latência p50/p95, replays e alertas
 - GET  /saude             — healthcheck
 - GET  /docs              — Swagger (OpenAPI) com exemplos de request/response
 
@@ -205,8 +205,9 @@ def relatorio(
     "/metricas",
     summary="Volume, latência e alertas de erros/falhas",
     description=(
-        "Métricas em memória (volume, aprovação/reprovação, falhas, latência "
-        "p50/p95) mais os alertas avaliados contra os limites "
+        "Métricas em memória (volume, aprovação/reprovação, falhas, "
+        "replays idempotentes, latência p50/p95) mais os alertas avaliados "
+        "contra os limites "
         "`CREDITO_ALERTA_*`: `latencia_p95_acima_do_slo` (crítico), "
         "`taxa_de_erro_acima_do_limite` (crítico) e "
         "`taxa_de_reprovacao_anomala` (warning). `status` é `ok` sem alerta e "
