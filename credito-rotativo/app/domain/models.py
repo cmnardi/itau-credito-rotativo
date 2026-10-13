@@ -81,9 +81,14 @@ class CustomerProfile:
         return Decimal("0") if total == 0 else self.valor_fatura / total
 
     @property
+    def media_gastos(self) -> Decimal:
+        """Média do histórico — insumo da R5 (e da R4, via variação)."""
+        return sum(self.gastos_ultimos_meses) / len(self.gastos_ultimos_meses)
+
+    @property
     def variacao_gastos(self) -> Decimal:
         """Coeficiente de variação (dp/média) — insumo da R4."""
-        media = sum(self.gastos_ultimos_meses) / len(self.gastos_ultimos_meses)
+        media = self.media_gastos
         if media == 0:
             return Decimal("0")
         return Decimal(str(pstdev(self.gastos_ultimos_meses))) / media

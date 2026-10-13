@@ -19,10 +19,7 @@ class PerfilGastosRule(AbstractRule):
         self.peso = peso
 
     def avaliar(self, context: EvaluationContext) -> None:
-        media = (
-            sum(context.customer.gastos_ultimos_meses)
-            / len(context.customer.gastos_ultimos_meses)
-        )
+        media = context.customer.media_gastos
         if context.customer.valor_fatura <= media * self.fator:
             context.peso_acumulado += self.peso
         else:

@@ -22,6 +22,13 @@ def test_criacao_valida():
     assert c.utilizacao_limite == Decimal("0.2")
 
 
+def test_media_gastos(cliente):
+    c = cliente(gastos_ultimos_meses=[Decimal("1000")] * 3 + [Decimal("2000")] * 3)
+    assert c.media_gastos == Decimal("1500")
+    # dp populacional 500 / média 1500 = 0,3333... (insumo da R4)
+    assert round(c.variacao_gastos, 4) == Decimal("0.3333")
+
+
 def test_rejeita_score_fora_do_intervalo():
     with pytest.raises(ValueError):
         CustomerProfile(

@@ -19,7 +19,7 @@ def test_gastos_estaveis(cliente):
 
 
 def test_gastos_instaveis(cliente):
-    # variação alta: dp/média ≈ 0.71 > 0.30
+    # variação alta: dp populacional 400 / média 500 = 0.80 > 0.30
     gastos = [
         Decimal("100"), Decimal("900"), Decimal("100"), Decimal("900"),
         Decimal("100"), Decimal("900"),
