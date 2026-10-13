@@ -5,7 +5,9 @@ services:
       dockerfile: Dockerfile
     container_name: credito-rotativo
     ports:
-      - "8000:8000"
+      # Porta da host configurável (ex.: CREDITO_PORTA=8001) para o caso de
+      # já haver outro serviço em 8000.
+      - "${CREDITO_PORTA:-8000}:8000"
     environment:
       # Padrão: sqlite em volume (sobrevive a reinícios).
       # Para banco em memória:
