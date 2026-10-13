@@ -98,11 +98,13 @@ Cada trade-off em 4 tempos: **decisão / alternativa / por quê / quando reavali
 ## Bloco 3 — Qualidade, operação e evolução (8 min)
 
 **Testes (2 min)**
-> Pirâmide: 41 testes — unitários por elo (limites exatos: score 600/599,
-> atrasos 2/3), integração (ordem, short-circuit, idempotência,
-> persistência entre "reinícios"), API (200/422/headers) e performance.
-> Números: **0,44 ms/avaliação, ~369k avaliações/min** (meta: 10k/min),
-> latência p95 medida em `/metricas`.
+> Pirâmide: 105 testes com **100% de cobertura** — unitários por elo
+> (limites exatos: score 600/599, atrasos 2/3), integração (ordem,
+> short-circuit, idempotência, replay, persistência entre "reinícios"),
+> API (200/422/headers) e performance.
+> Números: **0,4 ms/avaliação, ~400k avaliações/min** (meta: 10k/min);
+> pela API real (500 POSTs no container) p50 **0,19 ms** e p95
+> **0,25 ms**, medidos em `/metricas`.
 
 **Observabilidade (2 min)**
 > `/metricas`: volume, taxa aprovação/reprovação, latência p50/p95,
@@ -168,7 +170,8 @@ Cada trade-off em 4 tempos: **decisão / alternativa / por quê / quando reavali
 | Por que não Java? | Velocidade no prazo; trade-off documentado; o padrão (CoR) se replica 1:1 em qualquer linguagem |
 | Como adiciono uma regra? | Nova classe + registro no `REGISTRY` + env var — sem tocar no motor; posso mostrar ao vivo |
 | O 20/30 veio de onde? | 2 de 3 critérios de negócio — threshold em env var, calibrável sem deploy; dados reais calibrariam |
-| Escala real? | Medido: 369k/min vs 10k exigidos; garganto real seria I/O de banco — daí fila + workers |
+| Escala real? | Medido: ~400k/min vs 10k exigidos; garganto real seria I/O de banco — daí fila + workers |
+| E a autenticação? | Fora da app: controle de acesso no **API gateway**, antes do tráfego chegar — decisão de arquitetura registrada no backlog |
 | Por que idempotência por CPF? | Evita reavaliação em retry de rede; header manual cobre reavaliação deliberada |
 | E o short-circuit esconde diagnóstico? | `motivos` até o corte + `regras_aplicadas` mostram exatamente onde parou |
 | LGPD: e o salt? | Env var no case; produção: KMS/vault com rotação |

@@ -16,9 +16,9 @@
 - [x] Gerar relatório de aprovados/reprovados e valores
 
 **Epic 4 — NFRs**
-- [x] Hash/criptografia de dados sensíveis (LGPD)
+- [x] Hash com salt do CPF / nada de PII em claro (LGPD)
 - [x] Logs estruturados + métricas + alertas
-- [x] Idempotência na submissão (retry/circuit breaker: seams preparados, simulados)
+- [x] Idempotência na submissão (retry com backoff: **implementado** no Epic 7; circuit breaker: seam)
 
 **Epic 5 — Qualidade**
 - [x] Testes unitários por elo
@@ -37,7 +37,7 @@
 - [x] Alertas no `/metricas` — case pede "alertas para possíveis erros ou falhas"
 - [x] Dataset fictício `data/clientes_ficticios.json` — case fala em "lista de clientes" (14 perfis = payload do `/avaliacoes/batch`, testado de ponta a ponta)
 - [x] Exportação do relatório em CSV — plus rápido além do JSON (content negotiation: `Accept: text/csv` no `GET /relatorio`)
-- [ ] Atualizar `docs/04` e o roteiro da apresentação para refletir a realidade do código
+- [x] Atualizar `docs/04` e o roteiro da apresentação para refletir a realidade do código — números reais (105 testes, 100% cobertura; 0,35–0,79 ms/avaliação; ~400k/min; p50 0,19 ms / p95 0,25 ms pela API), claims que não existiam no código corrigidas (fila/workers "simulados" e "criptografia de campos sensíveis") e Q&A ganhou a pergunta sobre autenticação no gateway
 
 **Epic Entrega**
 - [x] Documentação final + diagramas
