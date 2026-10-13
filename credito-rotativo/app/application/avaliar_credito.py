@@ -110,7 +110,20 @@ class AvaliarCreditoUseCase:
             regras_aplicadas=contexto.regras_aplicadas,
             idempotency_key=idempotency_key,
         )
-        self.repositorio.salvar(avaliacao)
+        # O retry do write cobre indisponibilidade transitória; se esgotar,
+        # a falha também vira métrica/alerta (NFR: "erros ou falhas").
+        try:
+            self.repositorio.salvar(avaliacao)
+        except Exception as exc:
+            log_evento(
+                "avaliacao_falha",
+                logging.ERROR,
+                correlation_id=idempotency_key,
+                erro=type(exc).__name__,
+            )
+            if self.metricas is not None:
+                self.metricas.registrar_falha(type(exc).__name__)
+            raise
         if self.metricas is not None:
             self.metricas.registrar(aprovado)
         log_evento(

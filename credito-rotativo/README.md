@@ -196,7 +196,8 @@ Veja a tabela completa em `plano.md` (seção 7).
 - **Observabilidade:** logs via `logging` e métricas em memória
   (volume, taxa de aprovação, latência p50/p95) em `/metricas`, que também
   avalia os **alertas** de erros/falhas (abaixo).
-- **Resiliência:** idempotência na submissão; máquina de estados
+- **Resiliência:** idempotência na submissão; retry com backoff exponencial
+  no write do SQLite (`CREDITO_PERSISTENCIA_RETRY_*`); máquina de estados
   (RECEBIDO → EM_AVALIACAO → AVALIADO/FALHA) permite retomada.
 
 ## Trade-offs (resumo)

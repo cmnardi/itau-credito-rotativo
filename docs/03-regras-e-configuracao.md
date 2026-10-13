@@ -138,3 +138,24 @@ valor  = bruto × ajuste   (quantizado em 0.01)
 ## 3.6 Extensibilidade
 
 Nova regra = nova classe concreta de handler, registrada na configuração da cadeia. Nenhuma alteração no motor nem nas regras existentes (Open/Closed).
+
+## 3.7 Persistência e Retry (NFR de resiliência)
+
+`CREDITO_PERSISTENCIA` escolhe a implementação (`memoria` = padrão; `sqlite` = arquivo em `CREDITO_DB_PATH`, sobrevive a reinício). O **write do SQLite** é protegido por retry com backoff exponencial, cobrindo indisponibilidade temporária (banco travado por outro processo, I/O transitório):
+
+```
+espera(n) = min(BACKOFF_MS × 2^(n−1), BACKOFF_MAX_MS)    para n = 1 … TENTATIVAS−1
+```
+
+- Só `sqlite3.OperationalError` é tratado como transitório — qualquer outro erro propaga na 1ª tentativa (retry não mascara bug)
+- A abertura da conexão/schema segue a mesma política (boot com lock de outro processo)
+- Cada tentativa loga `persistencia_retry` (WARNING) e a exaustão `persistencia_falha` (ERROR) — alimenta a taxa de erro/alertas do `/metricas`
+- O lock do repositório fica tomado durante a espera: escritas não se intercalam na mesma conexão
+
+| Variável | Padrão |
+|---|---|
+| `CREDITO_PERSISTENCIA` | `memoria` (`sqlite` para arquivo) |
+| `CREDITO_DB_PATH` | `avaliacoes.db` |
+| `CREDITO_PERSISTENCIA_RETRY_TENTATIVAS` | 3 |
+| `CREDITO_PERSISTENCIA_RETRY_BACKOFF_MS` | 100 |
+| `CREDITO_PERSISTENCIA_RETRY_BACKOFF_MAX_MS` | 2000 |

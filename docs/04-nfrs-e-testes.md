@@ -6,7 +6,7 @@
 - **Escalabilidade:** serviço stateless, fila + workers (simulados), batch
 - **Segurança/LGPD:** hash com salt no CPF, criptografia de campos sensíveis, logs sem PII, controle de acesso no **API gateway** (antes de a requisição chegar na app)
 - **Observabilidade:** logs estruturados (corr. ID), métricas (volume, taxa aprovação/reprovação, latência p50/p95), alertas
-- **Resiliência:** retries com backoff, circuit breaker, idempotência na submissão
+- **Resiliência:** retry com backoff exponencial no write do SQLite (`CREDITO_PERSISTENCIA_RETRY_*`), idempotência na submissão, máquina de estados FALHA → EM_AVALIACAO (circuit breaker e fila: seams, ver backlog)
 
 ## 4.2 Estratégia de Testes
 

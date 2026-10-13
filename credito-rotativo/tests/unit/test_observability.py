@@ -90,6 +90,35 @@ def test_log_falha_em_erro(cliente, settings, caplog, monkeypatch):
     assert usecase.metricas.snapshot()["falhas"] == 1
 
 
+def test_falha_no_write_tambem_vira_metrica_e_alerta(cliente, settings, caplog):
+    """Esgotado o retry do SQLite, a falha de persistência também é
+    observável (NFR: "alertas para possíveis erros ou falhas")."""
+    import pytest
+    import sqlite3
+
+    class RepositorioQuebrado(RepositorioAvaliacoes):
+        def salvar(self, avaliacao):
+            raise sqlite3.OperationalError("database is locked")
+
+    usecase = AvaliarCreditoUseCase(settings, RepositorioQuebrado())
+    with caplog.at_level(logging.ERROR, logger="credito_rotativo"):
+        with pytest.raises(sqlite3.OperationalError):
+            usecase.executar(cliente(), "corr-write")
+
+    falhas = [r for r in _registros(caplog) if r.getMessage() == "avaliacao_falha"]
+    assert falhas[0].levelno == logging.ERROR
+    assert falhas[0].contexto["correlation_id"] == "corr-write"
+    assert falhas[0].contexto["erro"] == "OperationalError"
+
+    assert usecase.metricas.falhas == 1
+    assert usecase.metricas.ultimo_erro == "OperationalError"
+    assert usecase.metricas.snapshot()["taxa_erro"] == 1.0
+    alertas = usecase.metricas.avaliar_alertas(usecase.metricas.snapshot())
+    assert [a["codigo"] for a in alertas] == ["taxa_de_erro_acima_do_limite"]
+    # nada foi persistido: o relatório continua vazio
+    assert usecase.repositorio.listar() == []
+
+
 # ---------- alertas (NFR: "alertas para possíveis erros ou falhas") ----------
 
 

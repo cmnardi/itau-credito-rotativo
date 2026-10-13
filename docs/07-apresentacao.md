@@ -121,7 +121,10 @@ Cada trade-off em 4 tempos: **decisão / alternativa / por quê / quando reavali
 **Resiliência (1 min)**
 > Idempotência por chave (header `X-Idempotency-Key` ou hash do CPF):
 > retry não reavalia. Máquina de estados com FALHA → EM_AVALIACAO
-> (retry idempotente). SQLite em volume = dados sobrevivem a reinício.
+> (retry idempotente). SQLite em volume = dados sobrevivem a reinício,
+> e o write tem retry com backoff exponencial (`CREDITO_PERSISTENCIA_RETRY_*`)
+> contra indisponibilidade temporária — só erro transitório retenta, e cada
+> tentativa vira log `persistencia_retry`.
 
 **Evolução (2 min)**
 > - Workflow engine (Temporal) no lugar do orquestrador — sem tocar nas regras

@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     # Persistência: "memoria" (padrão) ou "sqlite" (arquivo)
     persistencia: Literal["memoria", "sqlite"] = "memoria"
     db_path: str = "avaliacoes.db"
+    # Retry com backoff no write do SQLite (NFR: resiliência a
+    # indisponibilidade temporária — lock, I/O transitório)
+    persistencia_retry_tentativas: int = 3
+    persistencia_retry_backoff_ms: float = 100.0  # base do backoff exponencial
+    persistencia_retry_backoff_max_ms: float = 2000.0  # teto da espera
     # LGPD: salt do hash de CPF (simulação — em produção usar KMS/vault)
     cpf_salt: str = "case-rotativo"
 
