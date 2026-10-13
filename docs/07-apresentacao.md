@@ -144,13 +144,14 @@ Cada trade-off em 4 tempos: **decisão / alternativa / por quê / quando reavali
 > SAGA vieram depois, quando já existia fluxo a proteger.
 
 **O que ficou de fora e por quê (2 min)**
-> - Autenticação/RBAC real (case aceita simulado; caminho: middleware)
+> - Autenticação/autorização na app — fica no **API gateway**, antes do tráfego chegar aqui (case: "controle de acesso restrito")
 > - Fila/workers reais (batch em memória atende 10k/min medido)
 > - Eventos de domínio publicados (seam no orquestrador, sem broker)
 > - Integrações bancárias (fora do escopo)
 
 **Encerramento (1 min)**
-> Limitações conhecidas: single-node, métricas em memória, sem auth real.
+> Limitações conhecidas: single-node, métricas em memória, auth
+> delegada ao API gateway (não implementada na aplicação).
 > Próximo passo: productionizar observabilidade (Prometheus) e
 > transportar a cadeia para a fila de avaliação.
 

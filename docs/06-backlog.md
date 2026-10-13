@@ -32,7 +32,7 @@
 
 **Epic 7 — Fechamento de Gaps (revisão vs case)**
 - [x] Logs estruturados reais — JSON por linha, eventos (iniciada/concluida/falha/replay), correlation_id, sem PII
-- [ ] Autenticação/autorização simulada — case pede "controle de acesso restrito, autenticação, autorização"
+- [x] Autenticação/autorização — **IGNORADA (decisão de arquitetura)**: a autenticação fica no **API gateway**, que protege o tráfego **antes** de chegar na aplicação; a API é um serviço interno atrás do gateway e não implementa auth própria (nem simulada). O case pedia "controle de acesso restrito, autenticação, autorização"
 - [ ] Retry com backoff no write do SQLite — docs prometem resiliência a indisponibilidade temporária
 - [x] Alertas no `/metricas` — case pede "alertas para possíveis erros ou falhas"
 - [x] Dataset fictício `data/clientes_ficticios.json` — case fala em "lista de clientes" (14 perfis = payload do `/avaliacoes/batch`, testado de ponta a ponta)
