@@ -16,9 +16,15 @@
 | [docs/05-tradeoffs-e-entrega.md](docs/05-tradeoffs-e-entrega.md) | Trade-offs, limitações, evoluções, entregáveis, declaração de uso de IA |
 | [docs/06-backlog.md](docs/06-backlog.md) | Backlog por épica (progresso da implementação) |
 | [docs/07-apresentacao.md](docs/07-apresentacao.md) | Roteiro da apresentação (30 min), demo e Q&A |
+| [docs/08-slides.html](docs/08-slides.html) | Slides da apresentação — HTML autocontido (11 slides em tema claro, sem internet), `S` = notas do apresentador, `F` = tela cheia |
 
 ## Código
 
 A implementação está em [`credito-rotativo/`](credito-rotativo/) — instruções de execução, endpoints e exemplos no [README de lá](credito-rotativo/README.md).
 
-Para exercitar a API de ponta a ponta existe a [collection do Postman](credito-rotativo/postman/credito-rotativo.postman_collection.json): 17 requests com 86 testes cobrindo as variações aprovado/reprovado (uma por caminho das 5 regras), idempotência/replay, batch, relatório JSON/CSV e `/metricas`. Importe no Postman ou rode sem ele com `npx newman run postman/credito-rotativo.postman_collection.json`.
+Para exercitar a API de ponta a ponta existe a [collection do Postman](credito-rotativo/postman/credito-rotativo.postman_collection.json): 17 requests com 86 testes cobrindo as variações aprovado/reprovado (uma por caminho das 5 regras), idempotência/replay, batch, relatório JSON/CSV e `/metricas`. Importe no Postman ou rode sem ele (Node ≥ 18, de dentro de `credito-rotativo/`):
+
+```bash
+cd credito-rotativo
+npx newman run postman/credito-rotativo.postman_collection.json
+```

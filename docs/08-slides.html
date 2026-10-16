@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de Regras para Crédito Rotativo — Apresentação (30 min)</title>
+<style>
+  :root {
+    --laranja: #ec7000;
+    --laranja-claro: #b35a00;
+    --fundo: #f4f2ef;
+    --painel: #ffffff;
+    --borda: #dbdfe3;
+    --texto: #1b2126;
+    --suave: #56616b;
+    --verde: #15803d;
+    --vermelho: #cf3b3b;
+    --azul: #1a66c7;
+    --pre-fundo: #f1f3f5;
+    --pre-texto: #232a30;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--fundo);
+    color: var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+  }
+  .deck { height: 100vh; position: relative; }
+  .slide {
+    display: none;
+    position: absolute;
+    inset: 0;
+    padding: 4.5vh 6vw 11vh;
+    flex-direction: column;
+    animation: entra .28s ease;
+  }
+  .slide.active { display: flex; }
+  @keyframes entra { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  .kicker {
+    color: var(--laranja);
+    font-size: .95rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: .6rem;
+  }
+  h1 { font-size: clamp(2.3rem, 4.8vw, 3.8rem); line-height: 1.08; font-weight: 800; }
+  h2 { font-size: clamp(1.7rem, 3.3vw, 2.7rem); line-height: 1.15; font-weight: 750; margin-bottom: 2.2vh; }
+  h3 { font-size: 1.08rem; color: var(--laranja-claro); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .5rem; }
+  p, li { font-size: clamp(1.05rem, 1.5vw, 1.35rem); line-height: 1.5; color: var(--texto); }
+  .muted { color: var(--suave); }
+  ul { list-style: none; }
+  li { margin: .45rem 0; padding-left: 1.15rem; position: relative; }
+  li::before { content: "▸"; position: absolute; left: 0; color: var(--laranja); }
+  li.no::before { content: "✕"; color: var(--vermelho); }
+  li.ok::before { content: "✓"; color: var(--verde); }
+  strong { color: #0d1115; font-weight: 750; }
+  .destaque { color: var(--laranja-claro); font-weight: 700; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; flex: 1; align-content: center; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6vw; flex: 1; align-content: center; }
+  .cartao {
+    background: var(--painel);
+    border: 1px solid var(--borda);
+    border-top: 3px solid var(--laranja);
+    border-radius: 10px;
+    padding: 1.6vh 1.3vw;
+    box-shadow: 0 1px 3px rgba(0,0,0,.07);
+  }
+  .cartao h3 { margin-bottom: .7rem; }
+  .cartao li { font-size: clamp(.98rem, 1.3vw, 1.2rem); margin: .4rem 0; }
+  .cartao p { font-size: clamp(1rem, 1.35vw, 1.25rem); }
+  pre {
+    background: var(--pre-fundo);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 1.4vh 1vw;
+    font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: clamp(.85rem, 1.18vw, 1.1rem);
+    line-height: 1.5;
+    overflow: hidden;
+    color: var(--pre-texto);
+    white-space: pre-wrap;
+  }
+  pre .c { color: #6b7680; }      /* comentário */
+  pre .k { color: var(--laranja-claro); }  /* destaque */
+  pre .g { color: var(--verde); }
+  table { width: 100%; border-collapse: collapse; font-size: clamp(.92rem, 1.25vw, 1.15rem); margin-top: auto; margin-bottom: auto; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--borda); }
+  th { color: var(--laranja-claro); font-size: .88rem; text-transform: uppercase; letter-spacing: .06em; }
+  td code, li code, p code {
+    font-family: Menlo, Consolas, monospace;
+    background: #eef0f2;
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: .05rem .3rem;
+    font-size: .9em;
+    color: var(--laranja-claro);
+  }
+  .verbos li { padding-left: 0; margin: .5rem 0; }
+  .verbos li::before { content: none; }
+  .vb {
+    display: inline-block;
+    min-width: 4em;
+    text-align: center;
+    background: var(--laranja);
+    color: #fff;
+    border-radius: 5px;
+    padding: .08rem .45rem;
+    font-weight: 800;
+    font-size: .82em;
+    letter-spacing: .04em;
+    margin-right: .45rem;
+  }
+  .vflow { display: flex; flex-direction: column; gap: .3rem; }
+  .vflow .seta-v { text-align: center; color: var(--laranja); font-weight: 800; font-size: 1.1rem; line-height: 1; }
+  .metricas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.4vw; margin: 1.5vh 0; }
+  .metrica { background: var(--painel); border: 1px solid var(--borda); border-radius: 10px; padding: 1.6vh .9vw; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+  .metrica .n { font-size: clamp(1.6rem, 2.9vw, 2.4rem); font-weight: 800; color: var(--laranja); }
+  .metrica .l { font-size: .9rem; color: var(--suave); margin-top: .3rem; line-height: 1.3; }
+  .fluxo { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1vh 0 2vh; }
+  .etapa {
+    background: var(--painel);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    padding: .55rem .85rem;
+    font-size: clamp(.9rem, 1.25vw, 1.1rem);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  .etapa.bloq { border-color: var(--vermelho); color: var(--vermelho); }
+  .etapa.scor { border-color: var(--azul); color: var(--azul); }
+  .seta { color: var(--laranja); font-weight: 700; }
+  .nota {
+    display: none;
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: #000;
+    border-top: 3px solid var(--laranja);
+    padding: 1.4vh 6vw;
+    font-size: .95rem;
+    color: #ffd9b3;
+    max-height: 30vh;
+    overflow: auto;
+  }
+  body.notas .slide.active .nota { display: block; }
+  .rodape {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1.1vh 2vw;
+    background: rgba(0,0,0,.35);
+    border-top: 1px solid var(--borda);
+    font-size: .78rem; color: var(--suave);
+  }
+  .barra { flex: 1; height: 5px; background: var(--borda); border-radius: 3px; overflow: hidden; }
+  .barra > i { display: block; height: 100%; background: var(--laranja); width: 0; transition: width .25s; }
+  .contador { font-variant-numeric: tabular-nums; }
+  .atalhos { opacity: .75; }
+  .capa { justify-content: center; }
+  .capa .sub { font-size: clamp(1.1rem, 2vw, 1.6rem); color: var(--suave); margin-top: 1.2rem; max-width: 60ch; }
+  .tags { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 2.2vh; }
+  .tag { border: 1px solid var(--laranja); color: var(--laranja-claro); border-radius: 99px; padding: .32rem .9rem; font-size: .95rem; font-weight: 600; }
+  .assinatura { position: absolute; bottom: 12vh; left: 6vw; font-size: .85rem; color: var(--suave); }
+  .timeline { counter-reset: passo; }
+  .timeline li { margin: .7rem 0; }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 · Capa -->
+  <section class="slide active">
+    <div class="capa" style="display:flex;flex-direction:column;justify-content:center;">
+      <div class="kicker">Case técnico · Processo seletivo — Engenharia de Software Backend</div>
+      <h1>Sistema de Regras para<br><span style="color:var(--laranja)">Crédito Rotativo</span> em Cartão de Crédito</h1>
+      <p class="sub">Avaliação e liberação automatizada para uma lista de clientes — regras
+      extensíveis, decisão em &lt; 1s, relatório de aprovados/reprovados e 7 NFRs.</p>
+      <div class="tags">
+        <span class="tag">Python 3.12</span>
+        <span class="tag">FastAPI</span>
+        <span class="tag">Chain of Responsibility</span>
+        <span class="tag">Pytest</span>
+        <span class="tag">Docker</span>
+        <span class="tag">SQLite</span>
+      </div>
+    </div>
+    <div class="cartao" style="max-width:82ch;margin-top:3.2vh;border-top-color:var(--azul)">
+      <h3 style="color:var(--azul)">Metodologia — SSD (Spec-Driven Development)</h3>
+      <p>A especificação do problema proposto no case foi tratada como contrato: primeiro
+      <strong>discutida e detalhada com a IA — antes das definições</strong> (requisitos, regras R1–R5,
+      thresholds, modelo de scoring e NFRs); com as decisões revisadas e acertadas pelo autor,
+      <strong>só então a implementação foi iniciada</strong>. Uso de IA declarado em
+      <code>docs/05</code>, seção 5.4.</p>
+    </div>
+    <p class="muted" style="margin-top:1.6vh">30 min de apresentação + 30 min de discussão ·
+    slides autocontidos (<code>docs/08-slides.html</code>)</p>
+    <div class="nota"><b>Abertura (30s):</b> “Vou apresentar a solução em 4 blocos pedidos no case:
+    contexto, decisões e trade-offs, qualidade/operacão/evolução, estratégia ampliada — com demo ao vivo no bloco 1.
+    O método foi spec-first: a especificação do problema foi discutida e detalhada com a IA antes de qualquer código,
+    e o uso de IA está declarado em <code>docs/05</code>, 5.4 — detalhamos tudo na discussão.”</div>
+  </section>
+
+  <!-- 2 · Contexto e requisitos -->
+  <section class="slide">
+    <div class="kicker">Bloco 1 · Contexto da solução</div>
+    <h2>O problema e o que o case exige</h2>
+    <div class="grid2">
+      <div class="cartao">
+        <h3>Problema de negócio</h3>
+        <ul>
+          <li>Liberar crédito rotativo automaticamente para clientes com perfil aprovado</li>
+          <li>Regras complexas: <strong>histórico de crédito</strong>, <strong>perfil de gastos</strong> e <strong>comportamento recente</strong></li>
+          <li>Simular a avaliação para uma <strong>lista de clientes</strong> (RF1–RF3)</li>
+          <li>Relatório de aprovados, reprovados e valores (RF5)</li>
+          <li>Adicionar regras <strong>sem refatorar o motor</strong> (RF4)</li>
+          <li>Documentar e justificar os critérios de decisão (RF6)</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>NFRs (7)</h3>
+        <ul>
+          <li><strong>Latência</strong> — decisão em até 1 segundo</li>
+          <li><strong>Escalabilidade</strong> — picos de 10.000 avaliações/min</li>
+          <li><strong>Precisão</strong> — sem liberação indevida / bloqueio indevido</li>
+          <li><strong>Extensibilidade</strong> — regras sem refatoração complexa</li>
+          <li><strong>Segurança/LGPD</strong> — PII protegido, acesso controlado</li>
+          <li><strong>Observabilidade</strong> — métricas, logs e alertas</li>
+          <li><strong>Resiliência</strong> — continuidade em falhas temporárias</li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota"><b>1 min:</b> O case não pede integração real com sistemas bancários — mocks são aceitos,
+    mas as decisões precisam ser justificadas. Vale destacar que os 7 NFRs viraram a seção 4.1 de
+    <code>docs/04</code> e cada um tem item no backlog (<code>docs/06</code>).</div>
+  </section>
+
+  <!-- 3 · Arquitetura -->
+  <section class="slide">
+    <div class="kicker">Bloco 1 · Contexto da solução</div>
+    <h2>Arquitetura — Ports &amp; Adapters em 4 camadas</h2>
+    <div class="fluxo">
+      <span class="etapa">API / Adapter <span class="muted">(FastAPI)</span></span><span class="seta">→</span>
+      <span class="etapa">Caso de Uso <span class="muted">(orquestrador)</span></span><span class="seta">→</span>
+      <span class="etapa">Cadeia de Regras <span class="muted">(CoR)</span></span><span class="seta">→</span>
+      <span class="etapa">Persistência <span class="muted">(SQLite / memória)</span></span>
+    </div>
+    <div class="grid2">
+      <div class="cartao">
+        <h3>Fluxo de uma avaliação</h3>
+        <div class="vflow">
+          <span class="etapa">1 · Validação do payload — fail-fast no domínio</span>
+          <span class="seta-v">↓</span>
+          <span class="etapa bloq">2 · Bloqueio: R1 score → R2 atrasos (corta a cadeia)</span>
+          <span class="seta-v">↓</span>
+          <span class="etapa scor">3 · Scoring: R3 → R4 → R5 (acumula até 30 pts)</span>
+          <span class="seta-v">↓</span>
+          <span class="etapa">4 · Decisão: sem bloqueio e peso ≥ 20 (2 de 3)</span>
+          <span class="seta-v">↓</span>
+          <span class="etapa">5 · Cálculo do valor máximo + ajuste</span>
+          <span class="seta-v">↓</span>
+          <span class="etapa">6 · Persistência, relatório e métricas</span>
+        </div>
+        <p class="muted" style="font-size:.95rem;margin-top:.9rem">Estado persistido de cada avaliação:
+        <code>RECEBIDO → EM_AVALIACAO → AVALIADO/FALHA</code></p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1.8vh">
+        <div class="cartao">
+          <h3>Domínio puro</h3>
+          <ul>
+            <li><code>app/domain</code> sem framework — testável sem HTTP/banco</li>
+            <li>dataclasses frozen + validação fail-fast</li>
+            <li>Regras como <strong>funções puras</strong></li>
+          </ul>
+        </div>
+        <div class="cartao">
+          <h3>API — 6 endpoints</h3>
+          <ul class="verbos">
+            <li><span class="vb">POST</span><code>/avaliacoes</code> — avalia um cliente</li>
+            <li><span class="vb">POST</span><code>/avaliacoes/batch</code> — avalia a lista (RF1)</li>
+            <li><span class="vb">GET</span><code>/relatorio</code> — JSON; <code>Accept: text/csv</code> → CSV</li>
+            <li><span class="vb">GET</span><code>/metricas</code> — volume, latências, alertas</li>
+            <li><span class="vb">GET</span><code>/saude</code> — healthcheck</li>
+            <li><span class="vb">GET</span><code>/docs</code> — Swagger / OpenAPI</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="nota"><b>2 min:</b> Dependências apontam para dentro: <code>api → application → domain ← infrastructure</code>.
+    O diagrama de componentes completo está em <code>docs/02</code> (Mermaid). A máquina de estados persistida e a
+    chave de idempotência são os pontos de extensão que preparam a migração para SAGA sem refatoração.</div>
+  </section>
+
+  <!-- 4 · CoR -->
+  <section class="slide">
+    <div class="kicker">Bloco 1 · Contexto da solução</div>
+    <h2>Padrão central: Chain of Responsibility</h2>
+    <div class="fluxo">
+      <span class="etapa bloq">R1 score ≥ 600</span><span class="seta">→</span>
+      <span class="etapa bloq">R2 atrasos ≤ 2</span><span class="seta">→</span>
+      <span class="etapa scor">R3 uso do limite (10)</span><span class="seta">→</span>
+      <span class="etapa scor">R4 estabilidade (10)</span><span class="seta">→</span>
+      <span class="etapa scor">R5 perfil de gastos (10)</span><span class="seta">→</span>
+      <span class="etapa">decisão + valor</span>
+    </div>
+    <p class="muted" style="font-size:.98rem;margin:-.4vh 0 1.6vh">Valor máximo =
+      <code>min(fatura × 1,0; limite_total × 50%; R$ 10.000)</code> ×
+      ajuste <code>0,50 + 0,50 × peso/30</code></p>
+    <div class="grid2">
+      <div class="cartao">
+        <h3>Design — onde as regras são encadeadas</h3>
+        <pre style="font-size:.95rem;line-height:1.42"><span class="c"># credito-rotativo/app/domain/rules/__init__.py</span>
+REGISTRY = {<span class="k">"score_minimo"</span>: ScoreMinimoRule, ...}
+ORDEM_PADRAO = [<span class="k">"score_minimo"</span>, ..., <span class="k">"perfil_gastos"</span>]
+
+<span class="k">def</span> montar_cadeia(config):
+    atual = REGISTRY[ORDEM_PADRAO[0]](**config.params(...))
+    <span class="k">for</span> nome <span class="k">in</span> ORDEM_PADRAO[1:]:   <span class="c"># encadeia em ordem</span>
+        atual = atual.set_next(
+            REGISTRY[nome](**config.params(nome)))
+    <span class="k">return</span> atual</pre>
+        <ul>
+          <li><code>rules/base.py</code> — <code>AbstractRule</code> encadeia e faz o
+          <strong>short-circuit</strong>; a regra implementa só <code>avaliar()</code></li>
+          <li><strong>Bloqueio (R1, R2) corta</strong> · <strong>scoring (R3–R5) acumula</strong> →
+          decisão: sem bloqueio e <code>peso ≥ 20</code> (máx 30 → <strong>2 de 3</strong>)</li>
+        </ul>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1.6vh">
+        <div class="cartao">
+          <h3>Nova regra em 3 passos (Open/Closed)</h3>
+          <ul>
+            <li><strong>1.</strong> Crie <code>app/domain/rules/minha_regra.py</code> — implementa só <code>avaliar(context)</code></li>
+            <li><strong>2.</strong> Registre em <code>REGISTRY</code> e <code>ORDEM_PADRAO</code> (no mesmo <code>__init__.py</code>)</li>
+            <li><strong>3.</strong> Thresholds da regra viram env var — <strong>sem tocar no motor, na API nem nos testes</strong></li>
+          </ul>
+        </div>
+        <div class="cartao">
+          <h3>Ajuste sem deploy — env vars <code>CREDITO_*</code></h3>
+          <ul>
+            <li><code>CREDITO_SCORE_MINIMO</code> = 600 <span class="muted">→ R1</span></li>
+            <li><code>CREDITO_MAX_ATRASOS_MESES</code> = 2 <span class="muted">→ R2</span></li>
+            <li><code>CREDITO_UTIL_LIMITE_MIN/MAX</code> = 0,10 / 0,90 <span class="muted">→ R3 (peso 10)</span></li>
+            <li><code>CREDITO_ESTABILIDADE_MAX</code> = 0,30 <span class="muted">→ R4 (peso 10)</span></li>
+            <li><code>CREDITO_PERFIL_GASTOS_FATOR</code> = 1,5 <span class="muted">→ R5 (peso 10)</span></li>
+            <li><code>CREDITO_LIMITE_APROVACAO</code> = 20 <span class="muted">→ decisão (2 de 3)</span></li>
+          </ul>
+          <p class="muted" style="font-size:.88rem;margin-top:.5rem">pydantic-settings: tipadas, com default e
+          validadas no boot (fail fast)</p>
+        </div>
+      </div>
+    </div>
+    <div class="nota"><b>2 min:</b> o código ao vivo é o <code>app/domain/rules/__init__.py</code> — mostrar
+    <code>montar_cadeia</code> e depois um arquivo de regra só para provar que implementa só <code>avaliar()</code>.
+    Pergunta de retomada para a demo: “<code>regras_aplicadas</code> mostra onde a cadeia parou”. O card de env vars
+    responde o NFR de extensibilidade: mudar threshold é trocar a env, sem redeploy; em produção, o 20/30 viraria
+    curva calibrada com dados reais.</div>
+  </section>
+
+  <!-- 5 · Demo -->
+  <section class="slide">
+    <div class="kicker">Bloco 1 · Demo ao vivo</div>
+    <h2>Demo (2 min) — aprovado, reprovado, relatório e métricas</h2>
+    <div class="grid2">
+      <div>
+        <pre><span class="c"># pré-demo: subir e conferir a porta</span>
+cd credito-rotativo
+<span class="k">CREDITO_PORTA=8001</span> docker compose up -d --build
+curl -s 127.0.0.1:8001/saude   <span class="c"># {"status":"ok"}</span>
+
+<span class="c"># aprovado: score 750, perfil estável</span>
+<span class="c"># 30/30 → valor liberado 1000.00</span>
+curl -X POST 127.0.0.1:8001/avaliacoes \
+  -H "Content-Type: application/json" -d '{
+  "nome":"Ana Silva","cpf":"123.456.789-00",
+  "score_credito":750,"valor_fatura":"1000.00",
+  "limite_disponivel":"4000.00","atrasos_meses":0,
+  "gastos_ultimos_meses":["1000.00","1200.00","900.00",
+  "1100.00","1000.00","1000.00"]}'</pre>
+      </div>
+      <div>
+        <pre><span class="c"># reprovado por atrasos: 5 &gt; 2 → short-circuit</span>
+<span class="c"># na R2 (regras_aplicadas = [R1])</span>
+
+<span class="c"># dataset completo: 14 clientes → 9/5</span>
+curl -X POST 127.0.0.1:8001/avaliacoes/batch \
+  -d @data/clientes_ficticios.json
+
+<span class="c"># agregação, latência p50/p95 e alertas</span>
+curl 127.0.0.1:8001/relatorio        <span class="c"># JSON</span>
+curl -H "Accept: text/csv" \
+  127.0.0.1:8001/relatorio -o rel.csv <span class="c"># CSV</span>
+curl 127.0.0.1:8001/metricas</pre>
+        <ul style="margin-top:1vh">
+          <li><code>/docs</code> (Swagger) com exemplos clicáveis</li>
+          <li>Collection Postman: <strong>17 requests / 86 testes</strong></li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota"><b>2 min:</b> mostrar <code>regras_aplicadas</code> no response do reprovado (prova do
+    short-circuit) e o <code>GET /relatorio</code> logo depois (RF5). Se a porta 8000 estiver livre, use
+    <code>docker compose up -d --build</code> sem a env var.</div>
+  </section>
+
+  <!-- 6 · Trade-offs (6 em 1) -->
+  <section class="slide">
+    <div class="kicker">Bloco 2 · Decisões técnicas e trade-offs</div>
+    <h2>Decisão → alternativa → por quê → quando reavaliar</h2>
+    <div class="grid3" style="gap:1.4vw 1.4vw">
+      <div class="cartao">
+        <h3>Python + FastAPI</h3>
+        <ul>
+          <li><b>Alternativa:</b> Java/Kotlin (stack do Itaú)</li>
+          <li><b>Por quê:</b> clareza e velocidade no prazo de 7 dias — sobrou tempo para testes, docs e NFRs</li>
+          <li><b>Reavaliar:</b> se virar produto de time Java</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>Chain of Responsibility</h3>
+        <ul>
+          <li><b>Alternativa:</b> Strategy</li>
+          <li><b>Por quê:</b> fluxo sequencial e fixo (bloqueio → scoring → decisão)</li>
+          <li><b>Reavaliar:</b> fórmulas de valor por produto (método de cálculo já isolado)</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>CoR + orquestrador</h3>
+        <ul>
+          <li><b>Alternativa:</b> SAGA (Temporal)</li>
+          <li><b>Por quê:</b> avaliação é <strong>read-only</strong> — sem efeitos colaterais a compensar</li>
+          <li><b>Reavaliar:</b> reserva de limite + contrato + notificação</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>Short-circuit</h3>
+        <ul>
+          <li><b>Alternativa:</b> avaliar todas as regras</li>
+          <li><b>Por quê:</b> reprovar imediatamente economiza processamento</li>
+          <li><b>Reavaliar:</b> precisar laudo completo (hoje: motivos até o corte + <code>regras_aplicadas</code>)</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>Env vars (12-factor)</h3>
+        <ul>
+          <li><b>Alternativa:</b> YAML / config em código</li>
+          <li><b>Por quê:</b> trocar threshold por ambiente sem redeploy; validação no boot (fail fast)</li>
+          <li><b>Reavaliar:</b> config centralizada em muitos serviços</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>SQLite</h3>
+        <ul>
+          <li><b>Alternativa:</b> Postgres</li>
+          <li><b>Por quê:</b> primeira versão single-node; persistência real sem infra extra (repositório atrás de interface)</li>
+          <li><b>Reavaliar:</b> múltiplos nós / escrita concorrente</li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota"><b>7 min:</b> cada decisão em 4 tempos, e o “quando reavaliar” é o ponto forte da discussão —
+    são decisões <b>reversíveis por design</b> (interface de repositório, método de cálculo isolado, config por env var).
+    Em produção, o orquestrador vira step de um SAGA orquestrado e a máquina de estados
+    (RECEBIDO → EM_AVALIACAO → AVALIADO/FALHA) + chave de idempotência já sustentam a retomada.
+    2PC/XA é evitado em escala por fragilidade.</div>
+  </section>
+
+  <!-- 7 · Qualidade -->
+  <section class="slide">
+    <div class="kicker">Bloco 3 · Qualidade, operação e evolução</div>
+    <h2>Testes e desempenho medido</h2>
+    <div class="metricas">
+      <div class="metrica"><div class="n">105</div><div class="l">testes automatizados</div></div>
+      <div class="metrica"><div class="n">100%</div><div class="l">cobertura de linhas (<code>--cov=app</code>)</div></div>
+      <div class="metrica"><div class="n">0,4 ms</div><div class="l">por avaliação (NFR ≤ 1 s)</div></div>
+      <div class="metrica"><div class="n">~400k/min</div><div class="l">vazão medida (meta: 10k/min)</div></div>
+    </div>
+    <div class="grid3">
+      <div class="cartao">
+        <h3>Pirâmide</h3>
+        <ul>
+          <li><strong>Unitários</strong> por elo — limites exatos: score 600/599, atrasos 2/3</li>
+          <li><strong>Integração</strong>: ordem, short-circuit, idempotência/replay, persistência entre reinícios</li>
+          <li><strong>API</strong>: 200/422/headers · <strong>performance</strong></li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>Pela API real</h3>
+        <ul>
+          <li>500 POSTs no container: <strong>p50 0,19 ms</strong> / <strong>p95 0,25 ms</strong></li>
+          <li>Expostos em <code>GET /metricas</code></li>
+          <li>Garganto real seria I/O de banco → fila + workers</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>Contrato e smoke</h3>
+        <ul>
+          <li>OpenAPI/Swagger em <code>/docs</code></li>
+          <li>Collection Postman: <strong>17 requests / 86 asserções</strong> — roda com <code>npx newman</code></li>
+          <li>Dataset de 14 perfis cobre os 5 caminhos das regras</li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota"><b>2 min:</b> Os números vêm de <code>tests/performance/</code> e do próprio <code>/metricas</code>
+    (reprodutíveis com <code>pytest -q --cov=app</code>). Edge cases: limite zerado, gastos zerados, dados inválidos (422).</div>
+  </section>
+
+  <!-- 8 · Operação -->
+  <section class="slide">
+    <div class="kicker">Bloco 3 · Qualidade, operação e evolução</div>
+    <h2>Observabilidade, segurança/LGPD e resiliência</h2>
+    <div class="grid3">
+      <div class="cartao">
+        <h3>Observabilidade</h3>
+        <ul>
+          <li><code>/metricas</code>: volume, taxas, p50/p95, <strong>replays</strong> e <strong>alertas</strong></li>
+          <li>Logs JSON por linha: eventos, <code>correlation_id</code>, <strong>sem PII</strong></li>
+          <li>Alertas: p95 &gt; SLO (1 s), taxa de erro &gt; 5%, reprovação ≥ 90% — calibráveis em <code>CREDITO_ALERTA_*</code></li>
+          <li>Transição vira log (sem repetição a cada poll)</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>Segurança / LGPD</h3>
+        <ul>
+          <li>CPF → <strong>SHA-256 + salt</strong> no adapter; domínio nunca vê o CPF</li>
+          <li>Nenhuma PII em log, relatório ou métricas (só <code>cpf_hash</code>)</li>
+          <li><strong>Auth/autorização no API gateway</strong> — app é serviço interno (decisão registrada)</li>
+          <li>Container sem privilégio + healthcheck</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>Resiliência</h3>
+        <ul>
+          <li><strong>Idempotência</strong>: <code>X-Idempotency-Key</code> (padrão: hash do CPF) → retry não reavalia; vira <code>replays</code> na métrica</li>
+          <li><strong>Retry + backoff</strong> no write do SQLite só para erros transitórios (<code>CREDITO_PERSISTENCIA_RETRY_*</code>)</li>
+          <li>Estado <code>FALHA → EM_AVALIACAO</code> retomável; volume = dados sobrevivem a reinício</li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota"><b>3 min:</b> Sobre autenticação — pergunta provável do Q&amp;A: o case pede “controle de acesso
+    restrito, autenticação, autorização”; a decisão foi deixar no gateway, antes do tráfego chegar na aplicação
+    (justificada em <code>docs/06</code>, Epic 7). Métricas são em memória — em produção: Prometheus/Grafana.</div>
+  </section>
+
+  <!-- 9 · Evolução -->
+  <section class="slide">
+    <div class="kicker">Bloco 3 · Qualidade, operação e evolução</div>
+    <h2>Evolução — o que muda e o que não precisa mudar</h2>
+    <div class="grid2">
+      <div class="cartao">
+        <h3>Próximos passos</h3>
+        <ul>
+          <li><strong>Workflow engine</strong> (Temporal) no lugar do orquestrador — sem tocar nas regras</li>
+          <li><strong>Fila + workers</strong> para picos (o batch já é endpoint)</li>
+          <li><strong>Postgres + réplicas</strong> — interface de repositório isola a troca</li>
+          <li><strong>Prometheus/Grafana</strong> e RBAC real no gateway</li>
+          <li>Strategy para fórmulas de valor por produto; regras com ML</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>O que já existe — e o que cada peça destrava</h3>
+        <ul>
+          <li><strong>Orquestrador = 1 caso de uso</strong>
+          (<code>app/application/avaliar_credito.py</code>): a ordem
+          valida → cadeia → calcula → persiste está toda nele — no futuro, trocar por um
+          workflow engine (Temporal) é substituir <strong>só esse módulo</strong>, API e regras ficam como estão</li>
+          <li><strong>O estado da avaliação já é salvo com ela</strong>
+          (<code>RECEBIDO → EM_AVALIACAO → AVALIADO/FALHA</code>) — é esse registro que um
+          retry ou fila lê para <strong>retomar de onde parou</strong>; já está modelado e persistido hoje</li>
+          <li><strong>Regras são funções puras</strong> (entra o perfil, sai o resultado, sem HTTP/banco) —
+          uma delas pode virar serviço remoto trocando <strong>só a implementação</strong>:
+          assinatura igual, a cadeia continua chamando do mesmo jeito</li>
+          <li><strong><code>REGISTRY</code> + interface de repositório</strong> — regra nova entra com
+          1 linha no registro; banco novo = implementar a interface + env var (mesmo caso de uso)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota"><b>1 min:</b> A mensagem: cada evolução da lista da esquerda troca
+    <b>um ponto só</b> — o módulo do orquestrador, a implementação interna de uma regra, a
+    implementação do repositório — sem refatorar motor, API nem testes de domínio
+    (princípio: pagar complexidade só quando o problema aparecer).</div>
+  </section>
+
+  <!-- 10 · Estratégia ampliada -->
+  <section class="slide">
+    <div class="kicker">Bloco 4 · Estratégia ampliada</div>
+    <h2>Como priorizei — e o que ficou de fora</h2>
+    <div class="grid2">
+      <div class="cartao">
+        <h3>Ordem de decisão</h3>
+        <ul class="timeline">
+          <li>Requisitos → modelo de domínio e invariantes (fail-fast) — base de tudo</li>
+          <li>Padrão da cadeia + escopo (CoR <em>vs</em> SAGA) — evita over-engineering</li>
+          <li>Regras parametrizáveis (env vars) — mudar regra sem deploy</li>
+          <li>Orquestrador + cálculo + relatório (fecha RF2–RF5)</li>
+          <li>NFRs: idempotência, métricas, LGPD, Docker</li>
+          <li>Testes + Swagger + documentação</li>
+        </ul>
+        <p class="muted" style="font-size:.9rem;margin-top:.6rem">Cada etapa entregou valor testável; a máquina
+        de estados e os pontos de extensão para SAGA vieram depois, quando já existia fluxo a proteger.</p>
+      </div>
+      <div class="cartao" style="border-top-color:var(--vermelho)">
+        <h3>Fora de escopo — e por quê</h3>
+        <ul>
+          <li class="no"><strong>Auth na aplicação</strong> — fica no API gateway, antes do tráfego chegar</li>
+          <li class="no"><strong>Fila/workers reais</strong> — batch em memória já atende 10k/min medido</li>
+          <li class="no"><strong>Eventos de domínio publicados</strong> — ponto de extensão no orquestrador, sem broker</li>
+          <li class="no"><strong>Integrações bancárias</strong> — fora do escopo do case (mocks aceitos)</li>
+        </ul>
+        <h3 style="margin-top:1.4vh">Limitações conhecidas</h3>
+        <ul>
+          <li>Single-node · métricas em memória · auth delegada ao gateway</li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota"><b>2 min + 1 min encerramento:</b> Priorização = resolver primeiro o que destrava as outras
+    decisões (domínio e padrão), depois extensibilidade, depois NFRs, depois superfície de apresentação
+    (testes/docs). Próximo passo: productionizar observabilidade e transportar a cadeia para a fila.</div>
+  </section>
+
+  <!-- 11 · Q&A -->
+  <section class="slide">
+    <div class="kicker">Encerramento</div>
+    <h1 style="color:var(--laranja)">Perguntas?</h1>
+    <div class="grid2" style="margin-top:2vh">
+      <div class="cartao">
+        <h3>Recursos para a discussão</h3>
+        <ul>
+          <li><code>docs/01–07</code> — contexto, arquitetura, regras, NFRs, trade-offs, backlog, roteiro</li>
+          <li><code>credito-rotativo/README.md</code> — execução, endpoints, configuração</li>
+          <li><code>/docs</code> (Swagger) · collection Postman 17/86 · dataset de 14 clientes</li>
+          <li>Declaração de uso de IA: <code>docs/05</code>, seção 5.4</li>
+        </ul>
+      </div>
+      <div class="cartao">
+        <h3>Resumo em 30 segundos</h3>
+        <ul>
+          <li>CoR extensível + config 12-factor = novas regras sem tocar no motor</li>
+          <li><strong>105 testes / 100%</strong>, 0,4 ms e ~400k/min vs 10k exigidos</li>
+          <li>LGPD por hash, logs sem PII, idempotência e retry com backoff</li>
+          <li>Trade-offs com “quando reavaliar” — decisões reversíveis por design</li>
+        </ul>
+      </div>
+    </div>
+    <div class="nota"><b>Q&amp;A — respostas de 30s:</b> <b>Por que não Java?</b> velocidade no prazo; CoR se replica 1:1.
+    · <b>Como adiciono regra?</b> nova classe + REGISTRY + env var (mostrar ao vivo). · <b>20/30 de onde?</b> 2 de 3
+    critérios, calibrável sem deploy. · <b>Escala real?</b> ~400k/min medidos; garganto = I/O de banco.
+    · <b>Autenticação?</b> no API gateway, antes da app. · <b>Idempotência por CPF?</b> evita reavaliação em retry;
+    header manual para reavaliação deliberada. · <b>Short-circuit esconde diagnóstico?</b> motivos até o corte +
+    regras_aplicadas. · <b>Salt?</b> env var aqui; KMS/vault em produção. · <b>SQLite em produção?</b> não é o plano:
+    interface isola a troca. · <b>Como testaria em produção?</b> load test com o dataset, contrato OpenAPI em CI,
+    SLO/alertas no Prometheus.</div>
+  </section>
+
+  <div class="rodape">
+    <span class="contador" id="contador">1 / 11</span>
+    <span class="barra"><i id="barra"></i></span>
+    <span class="atalhos">← → navegar · S notas do apresentador · F tela cheia</span>
+  </div>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let atual = 0;
+  function mostra(i) {
+    atual = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, n) => s.classList.toggle('active', n === atual));
+    document.getElementById('contador').textContent = (atual + 1) + ' / ' + slides.length;
+    document.getElementById('barra').style.width = ((atual + 1) / slides.length * 100) + '%';
+    location.hash = '#' + (atual + 1);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); mostra(atual + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); mostra(atual - 1); }
+    else if (e.key === 'Home') mostra(0);
+    else if (e.key === 'End') mostra(slides.length - 1);
+    else if (e.key === 's' || e.key === 'S') document.body.classList.toggle('notas');
+    else if (e.key === 'f' || e.key === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('a, pre, table')) return;
+    mostra(e.clientX < window.innerWidth * 0.25 ? atual - 1 : atual + 1);
+  });
+  const inicial = parseInt((location.hash || '').replace('#', ''), 10);
+  mostra(Number.isFinite(inicial) ? inicial - 1 : 0);
+</script>
+</body>
+</html>

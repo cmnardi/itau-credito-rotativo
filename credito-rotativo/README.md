@@ -117,6 +117,10 @@ esperado de cada caminho das regras:
 npx newman run postman/credito-rotativo.postman_collection.json
 ```
 
+> **Requisitos do newman:** Node **≥ 18** (em máquina com node antigo:
+> `nvm use 20`) e rodar o comando **de dentro de `credito-rotativo/`** — o
+> caminho da collection é relativo a esta pasta.
+
 Os payloads usam CPFs próprios da collection (`910.220.330-xx`, distintos do
 dataset) e os valores esperados assumem a **configuração padrão** — trocando
 as `CREDITO_*`, recalibre os números dentro dos testes.
@@ -213,7 +217,8 @@ maior o valor dentro do teto).
 Todas as regras e o cálculo são parametrizáveis via `CREDITO_*`
 (ex.: `CREDITO_SCORE_MINIMO=600`, `CREDITO_LIMITE_APROVACAO=20`).
 Carregadas por `pydantic-settings`: tipadas, com defaults, validadas no boot.
-Veja a tabela completa em `plano.md` (seção 7).
+Veja a tabela completa em
+[`docs/03-regras-e-configuracao.md`](../docs/03-regras-e-configuracao.md).
 
 ## NFRs
 
@@ -243,4 +248,6 @@ IA usada para: estruturação do plano, exploração dos padrões (CoR/Strategy)
 redação da documentação e implementação inicial. O raciocínio técnico, as
 regras de negócio e os trade-offs foram definidos e revisados pelo autor.
 
-Documentação completa: `plano.md` (raiz do repositório).
+Documentação completa: [README da raiz](../README.md) — índice dos
+`docs/01` a `docs/07` (contexto, arquitetura, regras, NFRs, trade-offs,
+backlog e roteiro da apresentação).

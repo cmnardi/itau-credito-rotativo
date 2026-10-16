@@ -23,5 +23,7 @@ integração (cadeia, API, persistência) e performance.
 - latência por avaliação: **0,35–0,79 ms** (NFR ≤ 1 s)
 - vazão em memória: **382k–460k avaliações/min** (meta do case: 10k/min)
 - pela API (500 POSTs no container): p50 **0,19 ms**, p95 **0,25 ms**
-  expostos em `/metricas` — a carga HTTP sequencial do teste ficou em
+  expostos em `/metricas` — o timer cobre **a execução da cadeia no
+  servidor** (sem rede/cliente; validação de payload e o `write` do
+  SQLite ficam fora do timer) e a carga HTTP sequencial do teste ficou em
   ~78 req/s, limite do cliente do teste, não do serviço

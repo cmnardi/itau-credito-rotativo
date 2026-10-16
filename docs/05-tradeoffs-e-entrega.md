@@ -29,6 +29,17 @@
 O uso de IA é liberado pelo case e deve ser explicitado ("como e em qual
 momento"). Declaro:
 
+**Metodologia — SSD (Spec-Driven Development).** A solução foi feita sob
+especificação primeiro: a **especificação do problema proposto no case foi
+discutida e detalhada com a IA antes das definições** — requisitos
+funcionais e não funcionais, regras R1–R5 com seus thresholds, modelo de
+scoring, fórmula de valor, padrões (CoR/Strategy/SAGA) e decisões de
+escopo foram negociados e revisados nessa etapa, com o autor validando
+cada definição. **Só após as definições acertadas a implementação foi
+iniciada**, Épic por Épic a partir da especificação (o backlog em
+`docs/06` espelha esse fluxo). Ou seja: a IA detalhou a especificação com
+o autor primeiro; o código veio depois — e não o contrário.
+
 **Como foi usada:** IA como ferramenta de estruturação e par de
 programação, com revisão humana de cada decisão.
 

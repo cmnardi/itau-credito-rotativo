@@ -3,6 +3,11 @@
 Formato livre (slides + demo ao vivo). Estrutura pedida no case:
 contexto → decisões e trade-offs → qualidade/operacão/evolução → estratégia ampliada.
 
+> **Material visual:** [`docs/08-slides.html`](08-slides.html) — 11 slides
+> autocontidos (abra no navegador; `←/→` navega, `S` mostra as notas do
+> apresentador — os blocos `> ` deste roteiro — e `F` é tela cheia).
+> Este documento é o **guia de fala**; o slide 5 (demo) usa os comandos do Bloco 1 abaixo.
+
 ## Cronograma
 
 | Bloco | Tempo | O que mostra |
@@ -39,15 +44,29 @@ contexto → decisões e trade-offs → qualidade/operacão/evolução → estra
 > - Nova regra = nova classe + registro no `REGISTRY` (Open/Closed)
 
 **Slide 4 — Demo ao vivo (2 min)**
+
+Pré-demo (5 min antes — evita surpresa de porta ocupada):
+
+```bash
+cd credito-rotativo
+CREDITO_PORTA=8001 docker compose up -d --build   # porta 8000 ocupada → 8001
+curl -s http://127.0.0.1:8001/saude               # {"status":"ok"} → porta confirmada
+```
+
+> Se usar a porta padrão, `docker compose up -d --build` e troque `8001`
+> por `8000` nos comandos abaixo. Com `npx newman` para a collection:
+> Node ≥ 18 e rodar de dentro de `credito-rotativo/`.
+
 ```bash
 # aprovado (score 750, perfil estável → 30/30 → valor 1000.00)
-curl -X POST localhost:8000/avaliacoes -H "Content-Type: application/json" -d '{
+curl -X POST http://127.0.0.1:8001/avaliacoes -H "Content-Type: application/json" -d '{
   "nome":"Ana Silva","cpf":"123.456.789-00","score_credito":750,
   "valor_fatura":"1000.00","limite_disponivel":"4000.00","atrasos_meses":0,
   "gastos_ultimos_meses":["1000.00","1200.00","900.00","1100.00","1000.00","1000.00"]}'
 
 # reprovado por atrasos (5 > 2 → short-circuit na R2, só R1 aplicada)
 # depois: GET /relatorio e GET /metricas mostram agregação e latência
+# dataset completo (14 clientes): POST /avaliacoes/batch -d @data/clientes_ficticios.json
 ```
 > Enfatizar: `regras_aplicadas` mostra o corte da cadeia; `/docs` tem os
 > exemplos clicáveis.
@@ -180,8 +199,12 @@ Cada trade-off em 4 tempos: **decisão / alternativa / por quê / quando reavali
 
 ## Checklist pré-apresentação
 
-- [ ] `docker compose up --build` testado na máquina (não é este ambiente)
-- [ ] `pytest -q` verde antes da demo
+Validado em 15/10/2026 (build + container + dataset + collection):
+
+- [x] `docker compose up --build` — imagem buildada, container no ar, `/saude`, `/docs` e batch de 14 clientes OK
+- [x] `pytest -q` verde (105 testes, 100% cobertura) + `npx newman run` (17 requests / 86 asserções, 0 falhas)
 - [ ] `/docs` aberto em aba separada para o bloco 1
-- [ ] Terminal com os comandos da demo prontos (bloco 1)
+- [ ] Terminal com os comandos da demo prontos (bloco 1) — porta conferida com `curl /saude` antes
+- [ ] Node ≥ 18 para newman no dia da demo (`nvm use 20` se a máquina usar node antigo)
+- [ ] Abrir `docs/08-slides.html` e percorrer os slides (setas/F = tela cheia)
 - [ ] Revisar `docs/05-tradeoffs-e-entrega.md` (perguntas de trade-off)
